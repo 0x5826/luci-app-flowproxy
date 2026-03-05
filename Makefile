@@ -8,3 +8,5 @@ LUCI_DEPENDS:=+luci-base +nftables +kmod-nft-core +kmod-nft-nat
 LUCI_PKGARCH:=all
 
 include $(TOPDIR)/feeds/luci/luci.mk
+
+# call BuildPackage - OpenWrt buildroot signature
