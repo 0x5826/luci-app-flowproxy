@@ -1,18 +1,11 @@
 {
 	"luci-app-flowproxy": {
-		"description": "Grant access to FlowProxy configuration",
+		"description": "Grant UCI access for luci-app-flowproxy",
 		"read": {
-			"ubus": {
-				"luci-app-flowproxy": [ "*" ]
-			},
-			"uci": {
-				"flowproxy": [ "read" ]
-			}
+			"uci": [ "flowproxy" ]
 		},
 		"write": {
-			"uci": {
-				"flowproxy": [ "write" ]
-			}
+			"uci": [ "flowproxy" ]
 		}
 	}
 }
