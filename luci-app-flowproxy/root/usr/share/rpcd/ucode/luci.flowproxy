@@ -60,10 +60,11 @@ const methods = {
                     let content = readfile(LOG_FILE);
                     if (content) {
                         let log_lines = split(content, "\n");
-                        let start = max(0, length(log_lines) - lines);
-                        for (let i = start; i < length(log_lines); i++) {
+                        let total = length(log_lines);
+                        let start = (total > lines) ? (total - lines) : 0;
+                        for (let i = start; i < total; i++) {
                             if (log_lines[i]) {
-                                push(logs, log_lines[i]);
+                                logs.push(log_lines[i]);
                             }
                         }
                     }
@@ -96,11 +97,10 @@ const methods = {
                 if (ubus) {
                     let result = ubus.call('network.interface', 'dump', {});
                     if (result && result.interface) {
-                        for (let i = 0; i < length(result.interface); i++) {
-                            let iface = result.interface[i];
+                        for (let iface in result.interface) {
                             if (iface && iface.device && !seen[iface.device]) {
                                 seen[iface.device] = true;
-                                push(interfaces, { name: iface.device, mac: '' });
+                                interfaces.push({ name: iface.device, mac: '' });
                             }
                         }
                     }
@@ -114,8 +114,7 @@ const methods = {
             try {
                 let names = lsdir('/sys/class/net');
                 if (names) {
-                    for (let i = 0; i < length(names); i++) {
-                        let name = names[i];
+                    for (let name in names) {
                         if (name && !seen[name]) {
                             seen[name] = true;
                             // 尝试读取 MAC 地址
@@ -129,7 +128,7 @@ const methods = {
                                     }
                                 }
                             } catch (e) {}
-                            push(interfaces, { name: name, mac: mac });
+                            interfaces.push({ name: name, mac: mac });
                         }
                     }
                 }
@@ -168,7 +167,7 @@ const methods = {
             try {
                 if (access('/tmp/flowproxy_nft.conf', 'r')) {
                     let content = readfile('/tmp/flowproxy_nft.conf');
-                    if (content) return replace(content, /^\s+|\s+$/g, '');
+                    if (content) return content.trim();
                 }
             } catch (e) {}
             return '';
