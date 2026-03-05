@@ -3,7 +3,11 @@
 		"title": "FlowProxy",
 		"order": 60,
 		"action": "alias",
-		"target": "admin/services/flowproxy/settings"
+		"target": "admin/services/flowproxy/settings",
+		"depends": {
+			"acl": [ "luci-app-flowproxy" ],
+			"uci": { "flowproxy": true }
+		}
 	},
 	"admin/services/flowproxy/settings": {
 		"title": "Settings",
