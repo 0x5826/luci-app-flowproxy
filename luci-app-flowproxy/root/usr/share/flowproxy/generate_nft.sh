@@ -2,6 +2,7 @@
 # Generate nftables configuration for flowproxy
 
 . /lib/functions.sh
+. /lib/functions/config.sh
 
 CONFIG="flowproxy"
 NFT_TABLE="inet flowproxy"
@@ -12,9 +13,31 @@ get_config() {
     uci get "$CONFIG.$1.$2" 2>/dev/null || echo "$3"
 }
 
+# 获取私有地址配置
+get_private_ips() {
+    local auto_generate
+    config_load "$CONFIG"
+    config_get auto_generate "private_dst_ip_v4" auto_generate "0"
+    if [ "$auto_generate" = "1" ]; then
+        echo "10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16"
+    else
+        # 从 elements 读取
+        local elements=""
+        config_list_foreach "private_dst_ip_v4" "elements" append_element
+        echo "$elements"
+    fi
+}
+
+append_element() {
+    local elem="$1"
+    [ -n "$elements" ] && elements="${elements}, "
+    elements="${elements}${elem}"
+}
+
 PROXY_IP=$(get_config "global" "proxy_ip" "")
 INTERFACE=$(get_config "global" "interface" "br-lan")
 TPROXY_MARK=$(get_config "global" "tproxy_mark" "100")
+PRIVATE_IPS=$(get_private_ips)
 
 cat > "$OUTPUT_FILE" << EOF
 #!/usr/sbin/nft -f
@@ -43,11 +66,7 @@ table $NFT_TABLE {
     set private_dst_ip_v4 {
         type ipv4_addr
         comment "Private IP ranges"
-        elements = {
-            10.0.0.0/8,
-            172.16.0.0/12,
-            192.168.0.0/16
-        }
+        elements = { $PRIVATE_IPS }
     }
 
     set chnroute_dst_ip_v4 {

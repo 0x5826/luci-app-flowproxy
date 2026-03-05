@@ -25,17 +25,25 @@ log_msg() {
 init_log() {
     local log_size=$(uci_get "$UCI_CONFIG" global log_size 1024)
     local log_count=$(uci_get "$UCI_CONFIG" global log_count 3)
-    
+
     mkdir -p "$(dirname "$LOG_FILE")"
-    
-    if [ -f "$LOG_FILE" ]; then
-        local size=$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)
-        if [ "$size" -gt $((log_size * 1024)) ]; then
-            for i in $(seq $((log_count - 1)) -1 1); do
-                [ -f "${LOG_FILE}.$i" ] && mv "${LOG_FILE}.$i" "${LOG_FILE}.$((i + 1))"
-            done
-            mv "$LOG_FILE" "${LOG_FILE}.1"
-        fi
+
+    # 检查并轮转日志文件（包括历史轮转文件）
+    local total_size=0
+    for i in $(seq 0 $log_count); do
+        local f="${LOG_FILE}${i:+.$i}"
+        [ -f "$f" ] && total_size=$((total_size + $(wc -c < "$f" 2>/dev/null || echo 0)))
+    done
+
+    if [ "$total_size" -gt $((log_size * 1024)) ]; then
+        # 删除最旧的轮转日志
+        [ -f "${LOG_FILE}.${log_count}" ] && rm -f "${LOG_FILE}.${log_count}"
+        # 轮转现有日志
+        for i in $(seq $((log_count - 1)) -1 1); do
+            [ -f "${LOG_FILE}.$i" ] && mv "${LOG_FILE}.$i" "${LOG_FILE}.$((i + 1))"
+        done
+        # 轮转当前日志
+        [ -f "$LOG_FILE" ] && mv "$LOG_FILE" "${LOG_FILE}.1"
     fi
     touch "$LOG_FILE"
 }
@@ -106,6 +114,28 @@ delete_nft_sets() {
     done
 }
 
+# 获取排序后的规则列表
+get_sorted_rules() {
+    local proto="$1"
+    local rules=""
+
+    config_list_foreach "$UCI_CONFIG" global "${proto}_rules" append_rule || true
+
+    # 按 priority 排序输出规则
+    for section in $(uci show "$UCI_CONFIG" | grep "=rule" | cut -d'=' -f1 | cut -d'.' -f2); do
+        local rule_proto protocol priority
+        config_get rule_proto "$section" protocol
+        [ "$rule_proto" != "$proto" ] && continue
+        config_get priority "$section" priority "100"
+        echo "$priority $section"
+    done | sort -n | cut -d' ' -f2
+}
+
+append_rule() {
+    local rule="$1"
+    echo "$rule"
+}
+
 # 创建规则链（TCP 或 UDP）
 create_chain() {
     local proto="$1"  # tcp 或 udp
@@ -125,8 +155,10 @@ create_chain() {
     nft add rule inet "$NFT_TABLE" "$chain" \
         ip saddr "$proxy_ip" ip protocol $proto counter return
 
-    # ===== 用户规则（界面配置）=====
-    config_foreach _add_rule rule "$proto"
+    # ===== 用户规则（按 priority 排序）=====
+    for section in $(get_sorted_rules "$proto"); do
+        _add_rule "$section" "$proto"
+    done
 }
 
 _add_rule() {

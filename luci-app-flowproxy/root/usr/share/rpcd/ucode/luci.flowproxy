@@ -87,22 +87,27 @@ const methods = {
     get_interfaces: {
         call: function() {
             let interfaces = [];
-            let cmd = 'ls /sys/class/net 2>/dev/null';
-            let proc = popen(cmd);
-            if (proc) {
-                let output = proc.read('all');
-                proc.close();
-                if (output) {
-                    let names = split(trim(output), /\n/);
-                    for (let i = 0; i < length(names); i++) {
-                        let name = names[i];
-                        let mac = '';
-                        try {
-                            mac = trim(readfile('/sys/class/net/' + name + '/address'));
-                        } catch (e) {}
-                        push(interfaces, { name: name, mac: mac });
+            try {
+                let cmd = 'ls /sys/class/net 2>/dev/null';
+                let proc = popen(cmd);
+                if (proc) {
+                    let output = proc.read('all');
+                    proc.close();
+                    if (output) {
+                        let names = split(trim(output), /\n/);
+                        for (let i = 0; i < length(names); i++) {
+                            let name = names[i];
+                            if (!name) continue;
+                            let mac = '';
+                            try {
+                                mac = trim(readfile('/sys/class/net/' + name + '/address'));
+                            } catch (e) {}
+                            push(interfaces, { name: name, mac: mac });
+                        }
                     }
                 }
+            } catch (e) {
+                // 返回空数组，错误不中断流程
             }
             return interfaces;
         }

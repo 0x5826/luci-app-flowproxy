@@ -24,24 +24,32 @@ return L.view.extend({
         s.sortable = true;
         s.addbtntitle = _('Add TCP Rule');
         
-        // 添加新规则时从模版复制
+        // 添加新规则时的默认配置
+        var defaultConfig = {
+            priority: '100',
+            use_no_proxy_src_mac: '1',
+            use_no_proxy_src_ip: '1',
+            use_no_proxy_dst_ip: '1',
+            use_private_dst_ip: '1',
+            use_chnroute_dst_ip: '1',
+            use_no_proxy_ports: '1'
+        };
+
+        // 添加新规则
         s.handleAdd = function(ev) {
             var section_id = uci.add('flowproxy', 'rule');
-            var tpl = uci.sections('flowproxy', 'template').find(function(t) {
-                return t.protocol === 'tcp';
-            }) || {};
-            
+
             uci.set('flowproxy', section_id, 'name', _('New TCP Rule'));
             uci.set('flowproxy', section_id, 'protocol', 'tcp');
             uci.set('flowproxy', section_id, 'enabled', '1');
-            uci.set('flowproxy', section_id, 'priority', tpl.priority || '100');
-            uci.set('flowproxy', section_id, 'use_no_proxy_src_mac', tpl.use_no_proxy_src_mac || '1');
-            uci.set('flowproxy', section_id, 'use_no_proxy_src_ip', tpl.use_no_proxy_src_ip || '1');
-            uci.set('flowproxy', section_id, 'use_no_proxy_dst_ip', tpl.use_no_proxy_dst_ip || '1');
-            uci.set('flowproxy', section_id, 'use_private_dst_ip', tpl.use_private_dst_ip || '1');
-            uci.set('flowproxy', section_id, 'use_chnroute_dst_ip', tpl.use_chnroute_dst_ip || '1');
-            uci.set('flowproxy', section_id, 'use_no_proxy_ports', tpl.use_no_proxy_ports || '1');
-            
+            uci.set('flowproxy', section_id, 'priority', defaultConfig.priority);
+            uci.set('flowproxy', section_id, 'use_no_proxy_src_mac', defaultConfig.use_no_proxy_src_mac);
+            uci.set('flowproxy', section_id, 'use_no_proxy_src_ip', defaultConfig.use_no_proxy_src_ip);
+            uci.set('flowproxy', section_id, 'use_no_proxy_dst_ip', defaultConfig.use_no_proxy_dst_ip);
+            uci.set('flowproxy', section_id, 'use_private_dst_ip', defaultConfig.use_private_dst_ip);
+            uci.set('flowproxy', section_id, 'use_chnroute_dst_ip', defaultConfig.use_chnroute_dst_ip);
+            uci.set('flowproxy', section_id, 'use_no_proxy_ports', defaultConfig.use_no_proxy_ports);
+
             return this.map.save().then(function() {
                 window.location.reload();
             });
@@ -90,21 +98,18 @@ return L.view.extend({
         
         s.handleAdd = function(ev) {
             var section_id = uci.add('flowproxy', 'rule');
-            var tpl = uci.sections('flowproxy', 'template').find(function(t) {
-                return t.protocol === 'udp';
-            }) || {};
-            
+
             uci.set('flowproxy', section_id, 'name', _('New UDP Rule'));
             uci.set('flowproxy', section_id, 'protocol', 'udp');
             uci.set('flowproxy', section_id, 'enabled', '1');
-            uci.set('flowproxy', section_id, 'priority', tpl.priority || '100');
-            uci.set('flowproxy', section_id, 'use_no_proxy_src_mac', tpl.use_no_proxy_src_mac || '1');
-            uci.set('flowproxy', section_id, 'use_no_proxy_src_ip', tpl.use_no_proxy_src_ip || '1');
-            uci.set('flowproxy', section_id, 'use_no_proxy_dst_ip', tpl.use_no_proxy_dst_ip || '1');
-            uci.set('flowproxy', section_id, 'use_private_dst_ip', tpl.use_private_dst_ip || '1');
-            uci.set('flowproxy', section_id, 'use_chnroute_dst_ip', tpl.use_chnroute_dst_ip || '1');
-            uci.set('flowproxy', section_id, 'use_no_proxy_ports', tpl.use_no_proxy_ports || '1');
-            
+            uci.set('flowproxy', section_id, 'priority', defaultConfig.priority);
+            uci.set('flowproxy', section_id, 'use_no_proxy_src_mac', defaultConfig.use_no_proxy_src_mac);
+            uci.set('flowproxy', section_id, 'use_no_proxy_src_ip', defaultConfig.use_no_proxy_src_ip);
+            uci.set('flowproxy', section_id, 'use_no_proxy_dst_ip', defaultConfig.use_no_proxy_dst_ip);
+            uci.set('flowproxy', section_id, 'use_private_dst_ip', defaultConfig.use_private_dst_ip);
+            uci.set('flowproxy', section_id, 'use_chnroute_dst_ip', defaultConfig.use_chnroute_dst_ip);
+            uci.set('flowproxy', section_id, 'use_no_proxy_ports', defaultConfig.use_no_proxy_ports);
+
             return this.map.save().then(function() {
                 window.location.reload();
             });

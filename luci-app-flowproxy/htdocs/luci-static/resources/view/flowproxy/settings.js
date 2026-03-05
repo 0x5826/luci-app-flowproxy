@@ -223,7 +223,9 @@ return L.view.extend({
                         nftEl.innerHTML = '<span style="color: gray;">' + _('No active chains') + '</span>';
                     }
                 }
-            }, this));
+            }, this)).catch(function(err) {
+                console.error('Failed to poll status:', err);
+            });
         }, this), 5);
     },
 
