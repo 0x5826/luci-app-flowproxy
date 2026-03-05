@@ -168,7 +168,6 @@ restart_service() { /etc/init.d/flowproxy restart; json_add_boolean "success" $?
 
 case "$1" in
     list)
-        json_add_object "methods"
         json_add_object "get_status"; json_close_object
         json_add_object "get_nft_status"; json_close_object
         json_add_object "get_logs"
@@ -180,7 +179,6 @@ case "$1" in
         json_add_object "start_service"; json_close_object
         json_add_object "stop_service"; json_close_object
         json_add_object "restart_service"; json_close_object
-        json_close_object
         ;;
     call)
         [ -n "$3" ] && json_load "$3"
