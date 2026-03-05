@@ -51,10 +51,10 @@ var callRestartService = rpc.declare({
 return L.view.extend({
     load: function() {
         return Promise.all([
-            uci.load('flowproxy'),
-            callGetStatus(),
-            callGetNftStatus(),
-            callGetInterfaces()
+            uci.load('flowproxy').catch(function() { return {}; }),
+            callGetStatus().catch(function() { return {}; }),
+            callGetNftStatus().catch(function() { return {}; }),
+            callGetInterfaces().catch(function() { return []; })
         ]);
     },
 

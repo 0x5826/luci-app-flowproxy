@@ -85,7 +85,7 @@ return L.view.extend({
         s = m.section(form.NamedSection, '_routes', 'flowproxy', _('Route Rules Preview'));
         s.render = L.bind(function() {
             var proxyIp = status.proxy_ip || _('(not configured)');
-            var interface = status.interface || 'br-lan';
+            var iface = status.interface || 'br-lan';
             var mark = status.tproxy_mark || '100';
 
             return E('div', { 'class': 'cbi-section-node' }, [
@@ -96,7 +96,7 @@ return L.view.extend({
                         '# IP Rule\n',
                         'ip rule add fwmark ' + mark + ' lookup ' + mark + '\n\n',
                         '# IP Route\n',
-                        'ip route add default via ' + proxyIp + ' dev ' + interface + ' table ' + mark + '\n\n',
+                        'ip route add default via ' + proxyIp + ' dev ' + iface + ' table ' + mark + '\n\n',
                         '# Verify\n',
                         'ip rule list\n',
                         'ip route show table ' + mark
