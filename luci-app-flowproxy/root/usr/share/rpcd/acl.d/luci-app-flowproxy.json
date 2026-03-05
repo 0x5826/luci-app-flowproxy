@@ -1,17 +1,14 @@
 {
 	"luci-app-flowproxy": {
-		"description": "Grant UCI and UBUS access for luci-app-flowproxy",
+		"description": "Grant access to flowproxy",
 		"read": {
 			"uci": [ "flowproxy" ],
 			"ubus": {
-				"luci-app-flowproxy": [ "get_status", "get_nft_status", "get_logs", "get_interfaces", "generate_nft_config", "get_nftset_content" ]
+				"luci-app-flowproxy": [ "*" ]
 			}
 		},
 		"write": {
-			"uci": [ "flowproxy" ],
-			"ubus": {
-				"luci-app-flowproxy": [ "clear_logs", "start_service", "stop_service", "restart_service", "add_nftset_element", "delete_nftset_element" ]
-			}
+			"uci": [ "flowproxy" ]
 		}
 	}
 }
