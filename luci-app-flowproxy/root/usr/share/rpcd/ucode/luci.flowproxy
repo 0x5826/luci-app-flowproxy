@@ -1,8 +1,9 @@
 #!/usr/bin/ucode
 'use strict';
 
-import { access, readfile, writefile, stat } from 'fs';
+import { access, readfile, writefile, stat, popen } from 'fs';
 import { cursor } from 'uci';
+import { connect } from 'ubus';
 
 const UCI_CONFIG = 'flowproxy';
 const LOG_FILE = '/var/log/flowproxy.log';
@@ -58,7 +59,7 @@ const methods = {
                 if (access(LOG_FILE, 'r')) {
                     let content = readfile(LOG_FILE);
                     if (content) {
-                        let log_lines = split(content, /\n/);
+                        let log_lines = split(content, "\n");
                         let start = max(0, length(log_lines) - lines);
                         for (let i = start; i < length(log_lines); i++) {
                             if (log_lines[i]) {
@@ -87,14 +88,43 @@ const methods = {
     get_interfaces: {
         call: function() {
             let interfaces = [];
+            
+            // 方法1: 尝试使用 ubus 获取网络设备
+            try {
+                let ubus = connect();
+                if (ubus) {
+                    let result = ubus.call('network.device', 'dump', {});
+                    if (result && result.devices) {
+                        for (let i = 0; i < length(result.devices); i++) {
+                            let dev = result.devices[i];
+                            if (dev && dev.name) {
+                                push(interfaces, {
+                                    name: dev.name,
+                                    mac: dev.macaddr || ''
+                                });
+                            }
+                        }
+                    }
+                    ubus.disconnect();
+                }
+            } catch (e) {
+                // ubus 方法失败，继续尝试备用方法
+            }
+            
+            // 如果 ubus 方法成功获取到接口，直接返回
+            if (length(interfaces) > 0) {
+                return interfaces;
+            }
+            
+            // 方法2: 备用方法，读取 /sys/class/net
             try {
                 let cmd = 'ls /sys/class/net 2>/dev/null';
-                let proc = popen(cmd);
+                let proc = popen(cmd, 'r');
                 if (proc) {
                     let output = proc.read('all');
                     proc.close();
                     if (output) {
-                        let names = split(output, /\n/);
+                        let names = split(output, "\n");
                         for (let i = 0; i < length(names); i++) {
                             let name = names[i];
                             if (!name) continue;
