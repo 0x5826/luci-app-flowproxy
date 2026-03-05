@@ -61,7 +61,7 @@ return L.view.extend({
     render: function(data) {
         var status = data[1] || {};
         var nftStatus = data[2] || {};
-        var interfaces = data[3] || [];
+        var interfaces = (data[3] && L.isObject(data[3]) && !L.isArray(data[3])) ? [] : (data[3] || []);
         var m, s, o;
 
         m = new form.Map('flowproxy', _('FlowProxy'),
