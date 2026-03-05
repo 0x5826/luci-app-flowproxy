@@ -1,7 +1,7 @@
 #!/usr/bin/ucode
 'use strict';
 
-import { access, readfile, writefile, stat, popen } from 'fs';
+import { access, readfile, writefile, stat, lsdir } from 'fs';
 import { cursor } from 'uci';
 import { connect } from 'ubus';
 
@@ -88,20 +88,25 @@ const methods = {
     get_interfaces: {
         call: function() {
             let interfaces = [];
-            
-            // 方法1: 尝试使用 ubus 获取网络设备
+            let seen = {};
+
+            // 方法1: 使用 ubus network.interface dump 获取接口
             try {
                 let ubus = connect();
                 if (ubus) {
-                    let result = ubus.call('network.device', 'dump', {});
-                    if (result && result.devices) {
-                        for (let i = 0; i < length(result.devices); i++) {
-                            let dev = result.devices[i];
-                            if (dev && dev.name) {
-                                push(interfaces, {
-                                    name: dev.name,
-                                    mac: dev.macaddr || ''
-                                });
+                    let result = ubus.call('network.interface', 'dump', {});
+                    if (result && result.interface) {
+                        for (let i = 0; i < length(result.interface); i++) {
+                            let iface = result.interface[i];
+                            if (iface && iface.device) {
+                                let dev = iface.device;
+                                if (!seen[dev]) {
+                                    seen[dev] = true;
+                                    push(interfaces, {
+                                        name: dev,
+                                        mac: ''
+                                    });
+                                }
                             }
                         }
                     }
@@ -110,38 +115,27 @@ const methods = {
             } catch (e) {
                 // ubus 方法失败，继续尝试备用方法
             }
-            
-            // 如果 ubus 方法成功获取到接口，直接返回
-            if (length(interfaces) > 0) {
-                return interfaces;
-            }
-            
-            // 方法2: 备用方法，读取 /sys/class/net
+
+            // 方法2: 读取 /sys/class/net 目录
             try {
-                let cmd = 'ls /sys/class/net 2>/dev/null';
-                let proc = popen(cmd, 'r');
-                if (proc) {
-                    let output = proc.read('all');
-                    proc.close();
-                    if (output) {
-                        let names = split(output, "\n");
-                        for (let i = 0; i < length(names); i++) {
-                            let name = names[i];
-                            if (!name) continue;
-                            name = replace(name, /^\s+|\s+$/g, '');
-                            if (!name) continue;
-                            let mac = '';
-                            try {
-                                mac = readfile('/sys/class/net/' + name + '/address');
-                                if (mac) mac = replace(mac, /^\s+|\s+$/g, '');
-                            } catch (e) {}
-                            push(interfaces, { name: name, mac: mac });
-                        }
+                let names = lsdir('/sys/class/net');
+                if (names) {
+                    for (let i = 0; i < length(names); i++) {
+                        let name = names[i];
+                        if (!name || seen[name]) continue;
+                        seen[name] = true;
+                        let mac = '';
+                        try {
+                            mac = readfile('/sys/class/net/' + name + '/address');
+                            if (mac) mac = replace(mac, /^\s+|\s+$/g, '');
+                        } catch (e) {}
+                        push(interfaces, { name: name, mac: mac });
                     }
                 }
             } catch (e) {
-                // 返回空数组，错误不中断流程
+                // 忽略错误
             }
+
             return interfaces;
         }
     },
