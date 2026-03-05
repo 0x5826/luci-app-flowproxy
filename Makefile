@@ -6,6 +6,3 @@ LUCI_TITLE:=LuCI Support for FlowProxy Traffic Diversion
 LUCI_DEPENDS:=+nftables +kmod-nft-core +kmod-nft-nat
 
 include $(TOPDIR)/feeds/luci/luci.mk
-
-# call BuildPackage - OpenWrt buildroot sign
-$(eval $(call BuildPackage,luci-app-flowproxy))
