@@ -94,13 +94,16 @@ const methods = {
                     let output = proc.read('all');
                     proc.close();
                     if (output) {
-                        let names = split(trim(output), /\n/);
+                        let names = split(output, /\n/);
                         for (let i = 0; i < length(names); i++) {
                             let name = names[i];
                             if (!name) continue;
+                            name = replace(name, /^\s+|\s+$/g, '');
+                            if (!name) continue;
                             let mac = '';
                             try {
-                                mac = trim(readfile('/sys/class/net/' + name + '/address'));
+                                mac = readfile('/sys/class/net/' + name + '/address');
+                                if (mac) mac = replace(mac, /^\s+|\s+$/g, '');
                             } catch (e) {}
                             push(interfaces, { name: name, mac: mac });
                         }
@@ -139,7 +142,8 @@ const methods = {
             let ret = system('/usr/share/flowproxy/generate_nft.sh >/dev/null 2>&1');
             try {
                 if (access('/tmp/flowproxy_nft.conf', 'r')) {
-                    return trim(readfile('/tmp/flowproxy_nft.conf'));
+                    let content = readfile('/tmp/flowproxy_nft.conf');
+                    if (content) return replace(content, /^\s+|\s+$/g, '');
                 }
             } catch (e) {}
             return '';
