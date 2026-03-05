@@ -2,6 +2,7 @@
 'use strict';
 
 import { access, readfile, writefile, listdir } from 'fs';
+import { cursor } from 'uci';
 
 const UCI_CONFIG = 'flowproxy';
 const LOG_FILE = '/var/log/flowproxy.log';
@@ -9,8 +10,8 @@ const NFT_TABLE = 'flowproxy';
 
 function uci_get_config(section, option, default_val) {
     try {
-        var cursor = uci.cursor();
-        var value = cursor.get(UCI_CONFIG, section, option);
+        var cursor_ = cursor();
+        var value = cursor_.get(UCI_CONFIG, section, option);
         return value || default_val || '';
     } catch (e) {
         return default_val || '';
