@@ -4,7 +4,8 @@
 		"read": {
 			"uci": [ "flowproxy" ],
 			"ubus": {
-				"luci.flowproxy": [ "*" ]
+				"luci.flowproxy": [ "*" ],
+				"network.interface": [ "dump" ]
 			}
 		},
 		"write": {
