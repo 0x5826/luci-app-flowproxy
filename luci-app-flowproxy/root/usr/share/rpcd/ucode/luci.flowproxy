@@ -124,12 +124,7 @@ const methods = {
                         let name = names[i];
                         if (!name || seen[name]) continue;
                         seen[name] = true;
-                        let mac = '';
-                        try {
-                            mac = readfile('/sys/class/net/' + name + '/address');
-                            if (mac) mac = replace(mac, /^\s+|\s+$/g, '');
-                        } catch (e) {}
-                        push(interfaces, { name: name, mac: mac });
+                        push(interfaces, { name: name, mac: '' });
                     }
                 }
             } catch (e) {
