@@ -10,8 +10,8 @@ const NFT_TABLE = 'flowproxy';
 
 function uci_get_config(section, option, default_val) {
     try {
-        var cursor_ = cursor();
-        var value = cursor_.get(UCI_CONFIG, section, option);
+        let cursor_ = cursor();
+        let value = cursor_.get(UCI_CONFIG, section, option);
         return value || default_val || '';
     } catch (e) {
         return default_val || '';
@@ -19,15 +19,15 @@ function uci_get_config(section, option, default_val) {
 }
 
 function check_nft_chain(chain) {
-    var ret = system('nft list chain inet ' + NFT_TABLE + ' ' + chain + ' >/dev/null 2>&1');
+    let ret = system('nft list chain inet ' + NFT_TABLE + ' ' + chain + ' >/dev/null 2>&1');
     return (ret === 0);
 }
 
 const methods = {
     get_status: {
         call: function() {
-            var enabled = parseInt(uci_get_config('global', 'enabled', '0')) || 0;
-            var running = check_nft_chain('LAN_MARKFLOW_TCP') ? 1 : 0;
+            let enabled = parseInt(uci_get_config('global', 'enabled', '0')) || 0;
+            let running = check_nft_chain('LAN_MARKFLOW_TCP') ? 1 : 0;
 
             return {
                 enabled: enabled,
@@ -51,16 +51,16 @@ const methods = {
     get_logs: {
         args: { lines: 100 },
         call: function(req) {
-            var lines = req.args?.lines ?? 100;
-            var logs = [];
+            let lines = req.args?.lines ?? 100;
+            let logs = [];
 
             try {
                 if (access(LOG_FILE, 'r')) {
-                    var content = readfile(LOG_FILE);
+                    let content = readfile(LOG_FILE);
                     if (content) {
-                        var log_lines = split(content, /\n/);
-                        var start = max(0, length(log_lines) - lines);
-                        for (var i = start; i < length(log_lines); i++) {
+                        let log_lines = split(content, /\n/);
+                        let start = max(0, length(log_lines) - lines);
+                        for (let i = start; i < length(log_lines); i++) {
                             if (log_lines[i]) {
                                 push(logs, log_lines[i]);
                             }
@@ -88,14 +88,14 @@ const methods = {
 
     get_interfaces: {
         call: function() {
-            var interfaces = [];
+            let interfaces = [];
 
             try {
-                var net_dir = listdir('/sys/class/net');
+                let net_dir = listdir('/sys/class/net');
                 if (net_dir) {
-                    for (var i = 0; i < length(net_dir); i++) {
-                        var name = net_dir[i];
-                        var mac = '';
+                    for (let i = 0; i < length(net_dir); i++) {
+                        let name = net_dir[i];
+                        let mac = '';
                         try {
                             mac = trim(readfile('/sys/class/net/' + name + '/address'));
                         } catch (e) {
@@ -114,28 +114,28 @@ const methods = {
 
     start_service: {
         call: function() {
-            var ret = system('/etc/init.d/flowproxy start >/dev/null 2>&1');
+            let ret = system('/etc/init.d/flowproxy start >/dev/null 2>&1');
             return (ret === 0);
         }
     },
 
     stop_service: {
         call: function() {
-            var ret = system('/etc/init.d/flowproxy stop >/dev/null 2>&1');
+            let ret = system('/etc/init.d/flowproxy stop >/dev/null 2>&1');
             return (ret === 0);
         }
     },
 
     restart_service: {
         call: function() {
-            var ret = system('/etc/init.d/flowproxy restart >/dev/null 2>&1');
+            let ret = system('/etc/init.d/flowproxy restart >/dev/null 2>&1');
             return (ret === 0);
         }
     },
 
     generate_nft_config: {
         call: function() {
-            var ret = system('/usr/share/flowproxy/generate_nft.sh >/dev/null 2>&1');
+            let ret = system('/usr/share/flowproxy/generate_nft.sh >/dev/null 2>&1');
             try {
                 if (access('/tmp/flowproxy_nft.conf', 'r')) {
                     return trim(readfile('/tmp/flowproxy_nft.conf'));
