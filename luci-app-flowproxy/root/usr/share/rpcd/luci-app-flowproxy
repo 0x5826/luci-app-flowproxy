@@ -39,9 +39,14 @@ get_nft_status() {
 get_logs() {
     local lines="${1:-100}"
     json_add_array "logs"
-    [ -f "$LOG_FILE" ] && tail -n "$lines" "$LOG_FILE" 2>/dev/null | while IFS= read -r line; do
-        json_add_string "" "$line"
-    done
+    if [ -f "$LOG_FILE" ]; then
+        local line
+        while IFS= read -r line; do
+            json_add_string "" "$line"
+        done <<EOF
+$(tail -n "$lines" "$LOG_FILE" 2>/dev/null)
+EOF
+    fi
     json_close_array
 }
 
