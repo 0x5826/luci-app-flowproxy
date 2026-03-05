@@ -1,0 +1,21 @@
+{
+	"luci-app-flowproxy": {
+		"description": "Grant access to FlowProxy configuration",
+		"read": {
+			"file": {
+				"/etc/config/flowproxy": [ "read" ]
+			},
+			"uci": {
+				"flowproxy": [ "read" ]
+			}
+		},
+		"write": {
+			"file": {
+				"/etc/config/flowproxy": [ "write" ]
+			},
+			"uci": {
+				"flowproxy": [ "write" ]
+			}
+		}
+	}
+}
