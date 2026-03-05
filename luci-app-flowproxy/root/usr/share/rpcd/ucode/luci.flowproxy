@@ -91,44 +91,31 @@ const methods = {
             let seen = {};
 
             // 方法1: 使用 ubus network.interface dump 获取接口
-            try {
-                let ubus = connect();
-                if (ubus) {
-                    let result = ubus.call('network.interface', 'dump', {});
-                    if (result && result.interface) {
-                        for (let i = 0; i < length(result.interface); i++) {
-                            let iface = result.interface[i];
-                            if (iface && iface.device) {
-                                let dev = iface.device;
-                                if (!seen[dev]) {
-                                    seen[dev] = true;
-                                    push(interfaces, {
-                                        name: dev,
-                                        mac: ''
-                                    });
-                                }
-                            }
+            let ubus = connect();
+            if (ubus) {
+                let result = ubus.call('network.interface', 'dump', {});
+                if (result && result.interface) {
+                    for (let i = 0; i < length(result.interface); i++) {
+                        let iface = result.interface[i];
+                        if (iface && iface.device && !seen[iface.device]) {
+                            seen[iface.device] = true;
+                            push(interfaces, { name: iface.device, mac: '' });
                         }
                     }
-                    ubus.disconnect();
                 }
-            } catch (e) {
-                // ubus 方法失败，继续尝试备用方法
+                ubus.disconnect();
             }
 
             // 方法2: 读取 /sys/class/net 目录
-            try {
-                let names = lsdir('/sys/class/net');
-                if (names) {
-                    for (let i = 0; i < length(names); i++) {
-                        let name = names[i];
-                        if (!name || seen[name]) continue;
+            let names = lsdir('/sys/class/net');
+            if (names) {
+                for (let i = 0; i < length(names); i++) {
+                    let name = names[i];
+                    if (name && !seen[name]) {
                         seen[name] = true;
                         push(interfaces, { name: name, mac: '' });
                     }
                 }
-            } catch (e) {
-                // 忽略错误
             }
 
             return interfaces;
