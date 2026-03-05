@@ -91,13 +91,13 @@ const methods = {
             let interfaces = [];
             let seen = {};
 
-            // 方法1: 使用 ubus network.interface dump 获取接口
             try {
                 let ubus = connect();
                 if (ubus) {
                     let result = ubus.call('network.interface', 'dump', {});
                     if (result && result.interface) {
-                        for (let iface in result.interface) {
+                        for (let i in result.interface) {
+                            let iface = result.interface[i];
                             if (iface && iface.device && !seen[iface.device]) {
                                 seen[iface.device] = true;
                                 interfaces.push({ name: iface.device, mac: '' });
@@ -106,35 +106,7 @@ const methods = {
                     }
                     ubus.disconnect();
                 }
-            } catch (e) {
-                // ubus 调用失败，继续使用备用方法
-            }
-
-            // 方法2: 读取 /sys/class/net 目录
-            try {
-                let names = lsdir('/sys/class/net');
-                if (names) {
-                    for (let name in names) {
-                        if (name && !seen[name]) {
-                            seen[name] = true;
-                            // 尝试读取 MAC 地址
-                            let mac = '';
-                            try {
-                                let macPath = '/sys/class/net/' + name + '/address';
-                                if (access(macPath, 'r')) {
-                                    let macContent = readfile(macPath);
-                                    if (macContent) {
-                                        mac = macContent.trim();
-                                    }
-                                }
-                            } catch (e) {}
-                            interfaces.push({ name: name, mac: mac });
-                        }
-                    }
-                }
-            } catch (e) {
-                // 读取目录失败
-            }
+            } catch (e) {}
 
             return interfaces;
         }
