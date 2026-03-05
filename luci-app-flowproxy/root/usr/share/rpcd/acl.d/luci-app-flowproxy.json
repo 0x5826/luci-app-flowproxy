@@ -4,13 +4,13 @@
 		"read": {
 			"uci": [ "flowproxy" ],
 			"ubus": {
-				"luci-app-flowproxy": [ "get_status", "get_nft_status", "get_logs", "get_interfaces", "generate_nft_config" ]
+				"luci.flowproxy": [ "*" ]
 			}
 		},
 		"write": {
 			"uci": [ "flowproxy" ],
 			"ubus": {
-				"luci-app-flowproxy": [ "start_service", "stop_service", "restart_service", "clear_logs" ]
+				"luci.flowproxy": [ "*" ]
 			}
 		}
 	}

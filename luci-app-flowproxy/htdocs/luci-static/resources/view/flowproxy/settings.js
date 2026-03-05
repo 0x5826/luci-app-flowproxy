@@ -8,52 +8,52 @@
 'require fs';
 
 var callGetStatus = rpc.declare({
-    object: 'luci-app-flowproxy',
+    object: 'luci.flowproxy',
     method: 'get_status',
-    expect: { status: {} }
+    expect: { '*': {} }
 });
 
 var callGetNftStatus = rpc.declare({
-    object: 'luci-app-flowproxy',
+    object: 'luci.flowproxy',
     method: 'get_nft_status',
-    expect: { nftables: {} }
+    expect: { '*': {} }
 });
 
 var callGetLogs = rpc.declare({
-    object: 'luci-app-flowproxy',
+    object: 'luci.flowproxy',
     method: 'get_logs',
     params: ['lines'],
-    expect: { logs: [] }
+    expect: { '*': [] }
 });
 
 var callClearLogs = rpc.declare({
-    object: 'luci-app-flowproxy',
+    object: 'luci.flowproxy',
     method: 'clear_logs',
-    expect: { success: false }
+    expect: { '*': false }
 });
 
 var callGetInterfaces = rpc.declare({
-    object: 'luci-app-flowproxy',
+    object: 'luci.flowproxy',
     method: 'get_interfaces',
-    expect: { interfaces: [] }
+    expect: { '*': [] }
 });
 
 var callStartService = rpc.declare({
-    object: 'luci-app-flowproxy',
+    object: 'luci.flowproxy',
     method: 'start_service',
-    expect: { success: false }
+    expect: { '*': false }
 });
 
 var callStopService = rpc.declare({
-    object: 'luci-app-flowproxy',
+    object: 'luci.flowproxy',
     method: 'stop_service',
-    expect: { success: false }
+    expect: { '*': false }
 });
 
 var callRestartService = rpc.declare({
-    object: 'luci-app-flowproxy',
+    object: 'luci.flowproxy',
     method: 'restart_service',
-    expect: { success: false }
+    expect: { '*': false }
 });
 
 return L.view.extend({
