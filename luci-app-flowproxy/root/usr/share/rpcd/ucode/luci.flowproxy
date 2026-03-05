@@ -27,7 +27,7 @@ function check_nft_chain(chain) {
 const methods = {
     get_status: {
         call: function() {
-            let enabled = parseInt(uci_get_config('global', 'enabled', '0')) || 0;
+            let enabled = int(uci_get_config('global', 'enabled', '0')) || 0;
             let running = check_nft_chain('LAN_MARKFLOW_TCP') ? 1 : 0;
 
             return {
