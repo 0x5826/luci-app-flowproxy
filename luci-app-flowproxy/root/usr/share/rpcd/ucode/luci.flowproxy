@@ -1,7 +1,7 @@
 #!/usr/bin/ucode
 'use strict';
 
-import { access, readfile, writefile, readdir } from 'fs';
+import { access, readfile, writefile, opendir } from 'fs';
 import { cursor } from 'uci';
 
 const UCI_CONFIG = 'flowproxy';
@@ -91,10 +91,10 @@ const methods = {
             let interfaces = [];
 
             try {
-                let net_dir = readdir('/sys/class/net');
-                if (net_dir) {
-                    for (let i = 0; i < length(net_dir); i++) {
-                        let name = net_dir[i];
+                let dir = opendir('/sys/class/net');
+                if (dir) {
+                    for (let entry = dir.read(); entry != null; entry = dir.read()) {
+                        let name = entry.name;
                         let mac = '';
                         try {
                             mac = trim(readfile('/sys/class/net/' + name + '/address'));
@@ -103,6 +103,7 @@ const methods = {
                         }
                         push(interfaces, { name: name, mac: mac });
                     }
+                    dir.close();
                 }
             } catch (e) {}
 
