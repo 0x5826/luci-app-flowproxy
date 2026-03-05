@@ -168,6 +168,7 @@ restart_service() { /etc/init.d/flowproxy restart; json_add_boolean "success" $?
 
 case "$1" in
     list)
+        json_init
         json_add_object "get_status"; json_close_object
         json_add_object "get_nft_status"; json_close_object
         json_add_object "get_logs"
@@ -179,8 +180,10 @@ case "$1" in
         json_add_object "start_service"; json_close_object
         json_add_object "stop_service"; json_close_object
         json_add_object "restart_service"; json_close_object
+        json_dump
         ;;
     call)
+        json_init
         [ -n "$3" ] && json_load "$3"
         case "$2" in
             get_status) get_status ;;
@@ -194,10 +197,10 @@ case "$1" in
             restart_service) restart_service ;;
             *) json_add_string "error" "Unknown method" ;;
         esac
+        json_dump
         ;;
     *)
-        echo "Usage: $0 {list|call method [params]}"; exit 1
+        echo "Usage: $0 {list|call method [params]}"
+        exit 1
         ;;
 esac
-
-json_dump
