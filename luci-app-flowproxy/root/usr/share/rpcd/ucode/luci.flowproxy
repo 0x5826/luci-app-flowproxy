@@ -1,7 +1,7 @@
 #!/usr/bin/ucode
 'use strict';
 
-import { access, readfile, writefile, opendir } from 'fs';
+import { access, readfile, writefile, stat } from 'fs';
 import { cursor } from 'uci';
 
 const UCI_CONFIG = 'flowproxy';
@@ -67,9 +67,7 @@ const methods = {
                         }
                     }
                 }
-            } catch (e) {
-                // Ignore errors
-            }
+            } catch (e) {}
 
             return logs;
         }
@@ -89,25 +87,23 @@ const methods = {
     get_interfaces: {
         call: function() {
             let interfaces = [];
-
-            try {
-                let dir = opendir('/sys/class/net');
-                if (dir) {
-                    let entry;
-                    while ((entry = dir.read()) != null) {
-                        let name = entry.name;
+            let cmd = 'ls /sys/class/net 2>/dev/null';
+            let proc = popen(cmd);
+            if (proc) {
+                let output = proc.read('all');
+                proc.close();
+                if (output) {
+                    let names = split(trim(output), /\n/);
+                    for (let i = 0; i < length(names); i++) {
+                        let name = names[i];
                         let mac = '';
                         try {
                             mac = trim(readfile('/sys/class/net/' + name + '/address'));
-                        } catch (e) {
-                            mac = '';
-                        }
+                        } catch (e) {}
                         push(interfaces, { name: name, mac: mac });
                     }
-                    dir.close();
                 }
-            } catch (e) {}
-
+            }
             return interfaces;
         }
     },
@@ -140,9 +136,7 @@ const methods = {
                 if (access('/tmp/flowproxy_nft.conf', 'r')) {
                     return trim(readfile('/tmp/flowproxy_nft.conf'));
                 }
-            } catch (e) {
-                // Ignore errors
-            }
+            } catch (e) {}
             return '';
         }
     }
