@@ -9,7 +9,6 @@ NAME="flowproxy"
 UCI_CONFIG="flowproxy"
 NFT_TABLE="flowproxy"
 LOG_FILE="/var/log/flowproxy.log"
-PID_FILE="/var/run/flowproxy.pid"
 
 log_msg() {
     local level="$1"; shift
@@ -218,22 +217,32 @@ delete_route() {
 }
 
 start_service() {
-    [ "$(uci_get "$UCI_CONFIG" global enabled 0)" -eq 0 ] && return 0
-    
+    local enabled=$(uci_get "$UCI_CONFIG" global enabled 0)
+
+    # 创建一个 procd 实例防止 crash loop
+    procd_open_instance "flowproxy"
+    procd_set_param command /bin/true
+    procd_set_param respawn 0
+    procd_close_instance
+
+    [ "$enabled" -eq 0 ] && {
+        log_msg info "FlowProxy is disabled"
+        return 0
+    }
+
     init_log
     log_msg info "Starting FlowProxy..."
-    
+
     check_config || return 1
-    
+
     config_load "$UCI_CONFIG"
-    
+
     create_nft_table
     create_nft_sets
     create_chain tcp
     create_chain udp
     add_route
-    
-    echo $$ > "$PID_FILE"
+
     log_msg info "FlowProxy started"
 }
 
@@ -243,7 +252,6 @@ stop_service() {
     delete_chains
     delete_nft_sets
     delete_nft_table
-    rm -f "$PID_FILE"
     log_msg info "FlowProxy stopped"
 }
 
