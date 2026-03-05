@@ -9,51 +9,43 @@
 
 var callGetStatus = rpc.declare({
     object: 'luci.flowproxy',
-    method: 'get_status',
-    expect: { '*': {} }
+    method: 'get_status'
 });
 
 var callGetNftStatus = rpc.declare({
     object: 'luci.flowproxy',
-    method: 'get_nft_status',
-    expect: { '*': {} }
+    method: 'get_nft_status'
 });
 
 var callGetLogs = rpc.declare({
     object: 'luci.flowproxy',
     method: 'get_logs',
-    params: ['lines'],
-    expect: { '*': [] }
+    params: ['lines']
 });
 
 var callClearLogs = rpc.declare({
     object: 'luci.flowproxy',
-    method: 'clear_logs',
-    expect: { '*': false }
+    method: 'clear_logs'
 });
 
 var callGetInterfaces = rpc.declare({
     object: 'luci.flowproxy',
-    method: 'get_interfaces',
-    expect: { '*': [] }
+    method: 'get_interfaces'
 });
 
 var callStartService = rpc.declare({
     object: 'luci.flowproxy',
-    method: 'start_service',
-    expect: { '*': false }
+    method: 'start_service'
 });
 
 var callStopService = rpc.declare({
     object: 'luci.flowproxy',
-    method: 'stop_service',
-    expect: { '*': false }
+    method: 'stop_service'
 });
 
 var callRestartService = rpc.declare({
     object: 'luci.flowproxy',
-    method: 'restart_service',
-    expect: { '*': false }
+    method: 'restart_service'
 });
 
 return L.view.extend({

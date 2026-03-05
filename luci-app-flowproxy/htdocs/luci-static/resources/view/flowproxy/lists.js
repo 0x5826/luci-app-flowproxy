@@ -8,22 +8,19 @@
 var callGetNftsetContent = rpc.declare({
     object: 'luci.flowproxy',
     method: 'get_nftset_content',
-    params: ['set_name'],
-    expect: { '*': '' }
+    params: ['set_name']
 });
 
 var callAddNftsetElement = rpc.declare({
     object: 'luci.flowproxy',
     method: 'add_nftset_element',
-    params: ['set_name', 'element'],
-    expect: { '*': false }
+    params: ['set_name', 'element']
 });
 
 var callDeleteNftsetElement = rpc.declare({
     object: 'luci.flowproxy',
     method: 'delete_nftset_element',
-    params: ['set_name', 'element'],
-    expect: { '*': false }
+    params: ['set_name', 'element']
 });
 
 return L.view.extend({

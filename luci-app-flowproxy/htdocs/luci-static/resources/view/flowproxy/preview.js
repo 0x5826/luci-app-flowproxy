@@ -7,14 +7,12 @@
 
 var callGenerateNftConfig = rpc.declare({
     object: 'luci.flowproxy',
-    method: 'generate_nft_config',
-    expect: { config: '' }
+    method: 'generate_nft_config'
 });
 
 var callGetStatus = rpc.declare({
     object: 'luci.flowproxy',
-    method: 'get_status',
-    expect: { '*': {} }
+    method: 'get_status'
 });
 
 return L.view.extend({
