@@ -58,18 +58,18 @@ return L.view.extend({
 
         o = s.option(form.Value, 'name', _('Rule Name'));
         o.rmempty = false;
-        o.width = '15%';
+        o.width = '20%';
 
         o = s.option(form.ListValue, 'protocol', _('Protocol'));
         o.value('both', 'TCP+UDP');
         o.value('tcp', 'TCP');
         o.value('udp', 'UDP');
-        o.width = '10%';
+        o.width = '15%';
 
         o = s.option(form.Value, 'content', _('NFT Rule Content'));
         o.rmempty = false;
         o.placeholder = 'e.g. ip daddr @private_dst_ip_v4 return';
-        // 增加简单的占位符提示，减少用户记忆负担
+        o.width = '50%';
         o.description = _('Tip: Use @proxy_server_ip, @chnroute_dst_ip_v4, etc.');
 
         return m.render();
