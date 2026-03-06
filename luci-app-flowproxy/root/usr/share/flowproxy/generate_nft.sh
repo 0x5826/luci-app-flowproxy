@@ -51,8 +51,8 @@ gen_set_definition() {
         fi
     fi
 
-    case "$elems" in */*|*-*) is_interval=1 ;; *) is_interval=0 ;; esac
-    [ "$type" = "inet_service" ] && is_interval=1
+    case "$type" in "ipv4_addr"|"inet_service"|"ether_addr") is_interval=1 ;; *) is_interval=0 ;; esac
+    [ "$is_interval" = "0" ] && { case "$elems" in */*|*-*) is_interval=1 ;; esac; }
 
     printf "    set %s {\n" "$section"
     printf "        type %s\n" "$type"
