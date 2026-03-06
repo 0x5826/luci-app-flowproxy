@@ -31,7 +31,7 @@ return L.view.extend({
                     Object.keys(presets).map(function(k) {
                         return E('button', {
                             'class': 'cbi-button cbi-button-apply',
-                            'click': L.bind(function(ev) {
+                            'click': function(ev) {
                                 ev.preventDefault();
                                 var sid = uci.add('flowproxy', 'rule');
                                 uci.set('flowproxy', sid, 'name', presets[k].name);
@@ -41,11 +41,10 @@ return L.view.extend({
                                 uci.set('flowproxy', sid, 'action', 'return');
                                 uci.set('flowproxy', sid, 'counter', '0');
                                 
-                                // 保存并局部重绘，不刷新页面
-                                return m.save(null, true).then(L.bind(function() {
-                                    return this.map.render();
-                                }, this));
-                            }, this)
+                                // 核心修复：先保存到 UCI 缓存，再刷新页面确保渲染引擎读取新数据
+                                uci.save();
+                                location.reload();
+                            }
                         }, [ E('em', { 'class': 'icon-plus' }), ' ', presets[k].name ]);
                     })
                 )
@@ -58,6 +57,19 @@ return L.view.extend({
         s.anonymous = true;
         s.sortable = true;
         s.nodescription = true;
+
+        // 辅助：处理手动点击“添加”按钮时的默认值
+        s.handleAdd = function(ev) {
+            var sid = uci.add('flowproxy', 'rule');
+            uci.set('flowproxy', sid, 'name', 'new rule');
+            uci.set('flowproxy', sid, 'enabled', '1');
+            uci.set('flowproxy', sid, 'protocol', 'both');
+            uci.set('flowproxy', sid, 'action', 'return');
+            uci.set('flowproxy', sid, 'counter', '0');
+            
+            uci.save();
+            location.reload();
+        };
 
         o = s.option(form.Flag, 'enabled', _('enabled'));
         o.width = '5%';
@@ -75,7 +87,6 @@ return L.view.extend({
         o = s.option(form.Value, 'content', _('content'));
         o.rmempty = false;
         o.width = '45%';
-        // 移除了 placeholder，避免与实际填写的规则内容混淆
 
         o = s.option(form.Flag, 'counter', _('counter'));
         o.width = '5%';
