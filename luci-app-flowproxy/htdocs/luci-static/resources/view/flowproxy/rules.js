@@ -18,7 +18,7 @@ return L.view.extend({
         nftsets.push('@proxy_server_ip');
 
         m = new form.Map('flowproxy', _('代理分流 - 规则管理'),
-            _('define nftables rules. separate lists for TCP and UDP flows.'));
+            _('define nftables rules. use the switch next to the title to enable/disable the entire chain.'));
 
         // 1. 快捷模板区域
         s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
@@ -33,11 +33,9 @@ return L.view.extend({
                 'mac': { name: 'mac (src)', type: 'src_mac', val: '@no_proxy_src_mac' },
                 'ports': { name: 'ports (dst)', type: 'dst_port', val: '@no_proxy_dst_tcp_ports' }
             };
-
             var container = E('div', { 'class': 'cbi-section-node' }, [
                 E('div', { 'style': 'padding: 8px; display: flex; flex-wrap: wrap; gap: 6px;' })
             ]);
-
             var btnGroup = container.querySelector('div');
             Object.keys(presets).forEach(function(k) {
                 var p = presets[k];
@@ -49,6 +47,7 @@ return L.view.extend({
                             var sid = uci.add('flowproxy', type);
                             uci.set('flowproxy', sid, 'name', 'skip ' + p.name);
                             uci.set('flowproxy', sid, 'enabled', '1');
+                            uci.set('flowproxy', sid, 'protocol', 'both');
                             uci.set('flowproxy', sid, 'match_type', p.type);
                             uci.set('flowproxy', sid, 'match_value', p.val);
                             uci.set('flowproxy', sid, 'action', 'return');
@@ -58,26 +57,41 @@ return L.view.extend({
                     })
                 }, [ E('em', { 'class': 'icon-plus' }), ' ', p.name ]));
             }, this);
-
             return container;
         }, this);
 
-        // 2. 总开关控制区域 (修正后的安全写法)
-        s = m.section(form.NamedSection, 'global', 'flowproxy', _('diversion master switches'));
-        
-        o = s.option(form.Flag, 'tcp_enabled', _('enable TCP matching rules'));
-        o.rmempty = false; o.default = '1';
+        // 2. 隐藏的全局配置段（用于承载开关逻辑，但不直接渲染）
+        var master_s = m.section(form.NamedSection, 'global', 'flowproxy');
+        var tcp_sw = master_s.option(form.Flag, 'tcp_enabled', _('enable TCP matching rules'));
+        var udp_sw = master_s.option(form.Flag, 'udp_enabled', _('enable UDP matching rules'));
 
-        o = s.option(form.Flag, 'udp_enabled', _('enable UDP matching rules'));
-        o.rmempty = false; o.default = '1';
-
-        // 辅助函数：创建规则表格
-        var renderTable = L.bind(function(map, type, title) {
+        // 辅助函数：创建标题带开关的规则表格
+        var renderTable = L.bind(function(map, type, title, switch_opt) {
             var s = map.section(form.TableSection, type, title);
             s.addremove = true;
             s.anonymous = true;
             s.sortable = true;
             s.nodescription = true;
+
+            // 核心黑科技：重写 render 函数，在标题行注入开关
+            s.render = L.bind(function() {
+                return form.TableSection.prototype.render.apply(s).then(L.bind(function(node) {
+                    var titleEl = node.querySelector('h3');
+                    if (titleEl) {
+                        titleEl.style.display = 'flex';
+                        titleEl.style.alignItems = 'center';
+                        titleEl.style.gap = '10px';
+                        
+                        // 创建一个容器来包裹开关，避免影响原有标题样式
+                        var sw_container = E('div', { 'style': 'font-size: 0.8em; font-weight: normal; margin-left: 10px; display: flex; align-items: center;' }, [
+                            switch_opt.render('global'),
+                            E('span', { 'style': 'margin-left: 5px;' }, _('master switch'))
+                        ]);
+                        titleEl.appendChild(sw_container);
+                    }
+                    return node;
+                }, this));
+            }, this);
 
             s.renderSectionAdd = function(extra_class) {
                 var node = form.TableSection.prototype.renderSectionAdd.apply(this, [extra_class]);
@@ -154,11 +168,8 @@ return L.view.extend({
             o.default = 'return'; o.width = '10%';
         }, this);
 
-        // 3. TCP 规则列表
-        renderTable(m, 'tcp_rule', _('TCP Matching Rules'));
-
-        // 4. UDP 规则列表
-        renderTable(m, 'udp_rule', _('UDP Matching Rules'));
+        renderTable(m, 'tcp_rule', _('TCP Matching Rules'), tcp_sw);
+        renderTable(m, 'udp_rule', _('UDP Matching Rules'), udp_sw);
 
         return m.render();
     }
