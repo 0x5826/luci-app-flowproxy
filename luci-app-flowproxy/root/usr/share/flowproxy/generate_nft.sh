@@ -3,13 +3,14 @@
 
 . /lib/functions.sh
 
+# 允许通过环境变量指定 UCI 缓存目录
 [ -n "$UCI_CONFIG_DIR" ] && export UCI_CONFIG_DIR
 
 CONFIG="flowproxy"
 NFT_TABLE="inet flowproxy"
 OUTPUT_FILE="/tmp/flowproxy_nft.conf"
 
-# 缓存所有已启用的 set 名称，用于后续验证规则引用
+# 缓存已启用的 Set
 ENABLED_SETS=""
 
 # 辅助函数
@@ -25,9 +26,7 @@ gen_set_definition() {
     config_get_bool enabled "$section" enabled 1
     [ "$enabled" = "0" ] && return
 
-    # 记录已启用的 Set
     ENABLED_SETS="${ENABLED_SETS} @${section}"
-
     type=$(uci -q get "$CONFIG.$section.type")
     [ -z "$type" ] && type="ipv4_addr"
     
@@ -41,19 +40,14 @@ gen_set_definition() {
         [ -n "$uci_elems" ] && uci_elems="${uci_elems}, "
         uci_elems="${uci_elems}${e}"
     done
-
     [ -n "$uci_elems" ] && { [ -n "$elems" ] && elems="${elems}, "; elems="${elems}${uci_elems}"; }
 
     file_path=$(uci -q get "$CONFIG.$section.file_path")
     if [ -n "$file_path" ] && [ -f "$file_path" ]; then
         local file_elems=$(get_file_elements "$file_path")
-        if [ -n "$file_elems" ]; then
-            [ -n "$elems" ] && elems="${elems}, "
-            elems="${elems}${file_elems}"
-        fi
+        [ -n "$file_elems" ] && { [ -n "$elems" ] && elems="${elems}, "; elems="${elems}${file_elems}"; }
     fi
 
-    # 如果 Set 最终没有任何元素，nftables 依然允许定义空的 Set，但不允许 elements = { } 语法
     case "$elems" in */*|*-*) is_interval=1 ;; *) is_interval=0 ;; esac
     [ "$type" = "inet_service" ] && is_interval=1
 
@@ -84,7 +78,6 @@ echo "" > "$UDP_RULES_TMP"
 generate_user_rule() {
     local section="$1"
     local enabled protocol match_type match_value action counter
-    
     config_get_bool enabled "$section" enabled 1
     [ "$enabled" = "0" ] && return
     
@@ -95,16 +88,12 @@ generate_user_rule() {
     action=$(uci -q get "$CONFIG.$section.action")
     [ -z "$action" ] && action="return"
     counter=$(uci -q get "$CONFIG.$section.counter")
-
     [ -z "$match_value" ] && return
 
-    # 关键安全检查：如果引用了名单，但名单未启用，则跳过此规则防止 nft 加载失败
     case "$match_value" in
         @*)
             local set_ref=$(echo "$match_value" | cut -d' ' -f1)
-            if [ "$set_ref" != "@proxy_server_ip" ]; then
-                echo "$ENABLED_SETS" | grep -q "$set_ref" || return
-            fi
+            [ "$set_ref" != "@proxy_server_ip" ] && ! echo "$ENABLED_SETS" | grep -q "$set_ref" && return
             ;;
     esac
 
@@ -128,12 +117,8 @@ generate_user_rule() {
     line_tcp=$(echo "$line_tcp" | sed "s/@proxy_server_ip/$proxy_ip/g")
     line_udp=$(echo "$line_udp" | sed "s/@proxy_server_ip/$proxy_ip/g")
 
-    if [ "$protocol" = "tcp" ] || [ "$protocol" = "both" ]; then
-        echo "        $line_tcp" >> "$TCP_RULES_TMP"
-    fi
-    if [ "$protocol" = "udp" ] || [ "$protocol" = "both" ]; then
-        echo "        $line_udp" >> "$UDP_RULES_TMP"
-    fi
+    [ "$protocol" = "tcp" ] || [ "$protocol" = "both" ] && echo "        $line_tcp" >> "$TCP_RULES_TMP"
+    [ "$protocol" = "udp" ] || [ "$protocol" = "both" ] && echo "        $line_udp" >> "$UDP_RULES_TMP"
 }
 
 # --- 开始执行 ---
@@ -143,15 +128,8 @@ table $NFT_TABLE {
 EOF
 
 config_load "$CONFIG"
-# 先生成所有 Set 并记录 ENABLED_SETS
-for s in $(uci -q show "$CONFIG" | grep "=nftset" | cut -d'.' -f2 | cut -d'=' -f1); do
-    gen_set_definition "$s" >> "$OUTPUT_FILE"
-done
-
-# 再根据 ENABLED_SETS 安全生成规则
-for s in $(uci -q show "$CONFIG" | grep "=rule" | cut -d'.' -f2 | cut -d'=' -f1); do
-    generate_user_rule "$s"
-done
+for s in $(uci -q show "$CONFIG" | grep "=nftset" | cut -d'.' -f2 | cut -d'=' -f1); do gen_set_definition "$s" >> "$OUTPUT_FILE"; done
+for s in $(uci -q show "$CONFIG" | grep "=rule" | cut -d'.' -f2 | cut -d'=' -f1); do generate_user_rule "$s"; done
 
 TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
 cat >> "$OUTPUT_FILE" << EOF
@@ -159,14 +137,16 @@ cat >> "$OUTPUT_FILE" << EOF
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
 $(cat "$TCP_RULES_TMP")
-        meta mark set $TPROXY_MARK
+        # 显式限定 IPv4 TCP 标记
+        ip protocol tcp meta mark set $TPROXY_MARK
     }
 
     chain LAN_MARKFLOW_UDP {
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
 $(cat "$UDP_RULES_TMP")
-        meta mark set $TPROXY_MARK
+        # 显式限定 IPv4 UDP 标记
+        ip protocol udp meta mark set $TPROXY_MARK
     }
 }
 EOF
