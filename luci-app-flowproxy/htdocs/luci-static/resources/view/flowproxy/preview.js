@@ -10,84 +10,74 @@ var callGenerateNftConfig = rpc.declare({
     method: 'generate_nft_config'
 });
 
-var callGetStatus = rpc.declare({
+var callGetRuntimeConfig = rpc.declare({
     object: 'luci.flowproxy',
-    method: 'get_status'
+    method: 'get_runtime_config'
 });
 
 return L.view.extend({
     load: function() {
-        // 先尝试将当前会话的 UCI 更改保存到缓存文件（不 commit）
-        // 这样 generate_nft.sh 就能读取到最新的修改
         return uci.save().then(function() {
             return Promise.all([
                 uci.load('flowproxy'),
                 callGenerateNftConfig(),
-                callGetStatus()
+                callGetRuntimeConfig()
             ]);
         });
     },
 
     render: function(data) {
-        var nftConfig = (data[1] && data[1].config) ? data[1].config : '';
-        var status = data[2] || {};
+        var genConfig = (data[1] && data[1].config) ? data[1].config : '';
+        var runConfig = (data[2] && data[2].runtime) ? data[2].runtime : '';
         var m, s, o;
 
-        m = new form.Map('flowproxy', _('flowproxy - preview'),
-            _('preview the generated nftables configuration based on your CURRENT (saved) rules.'));
+        m = new form.Map('flowproxy', _('flowproxy - preview & debug'),
+            _('view the generated configuration and live kernel state.'));
 
-        // 当前运行概览
-        s = m.section(form.NamedSection, '_current', 'flowproxy', _('running summary'));
-        s.render = function() {
+        s = m.section(form.NamedSection, 'global', 'flowproxy', _('inspection tabs'));
+        
+        // 增加标签页切换
+        s.tab('generated', _('generated config'));
+        s.tab('runtime', _('live runtime state'));
+
+        // Tab 1: 生成的配置 (Requirement 1)
+        o = s.taboption('generated', form.SectionValue, '_gen_val', form.NamedSection, 'global', 'flowproxy');
+        var ss_gen = o.subsection;
+        ss_gen.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'class': 'table' }, [
-                    E('div', { 'class': 'tr' }, [
-                        E('div', { 'class': 'td left', 'style': 'width: 30%' }, _('service enabled')),
-                        E('div', { 'class': 'td left' }, (status.enabled == 1) ? 
-                            '<span style="color: green;">' + _('yes') + '</span>' : 
-                            '<span style="color: red;">' + _('no') + '</span>')
-                    ]),
-                    E('div', { 'class': 'tr' }, [
-                        E('div', { 'class': 'td left' }, _('proxy server ip')),
-                        E('div', { 'class': 'td left' }, status.proxy_ip || '-')
-                    ])
-                ])
+                E('div', { 'style': 'padding: 10px; border-bottom: 1px solid #eee; margin-bottom: 10px;' }, [
+                    E('p', {}, _('this is the nftables file generated based on your CURRENT rules (saved but maybe not applied).')),
+                    E('button', {
+                        'class': 'cbi-button cbi-button-apply',
+                        'click': function() { ui.addNotification(null, E('p', _('copied')), 'info'); navigator.clipboard.writeText(genConfig); }
+                    }, _('copy config'))
+                ]),
+                E('textarea', {
+                    'style': 'width: 100%; height: 600px; font-family: monospace; font-size: 12px; background: #fdfdfd; border: none; padding: 10px;',
+                    'readonly': true
+                }, genConfig)
             ]);
-        };
+        }, this);
 
-        // nftables 配置预览
-        s = m.section(form.NamedSection, '_preview', 'flowproxy', _('nftables configuration'));
-        s.render = L.bind(function() {
+        // Tab 2: 内核实时状态 (Requirement 2)
+        o = s.taboption('runtime', form.SectionValue, '_run_val', form.NamedSection, 'global', 'flowproxy');
+        var ss_run = o.subsection;
+        ss_run.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'class': 'cbi-page-actions', 'style': 'margin-bottom: 10px;' }, [
+                E('div', { 'style': 'padding: 10px; border-bottom: 1px solid #eee; margin-bottom: 10px;' }, [
+                    E('p', {}, _('this shows the ACTUAL rules and routing policies currently active in the linux kernel.')),
                     E('button', {
                         'class': 'cbi-button cbi-button-refresh',
                         'click': function() { location.reload(); }
-                    }, _('refresh preview')),
-                    E('button', {
-                        'class': 'cbi-button cbi-button-apply',
-                        'click': L.bind(this.copyConfig, this)
-                    }, _('copy to clipboard'))
+                    }, _('refresh status'))
                 ]),
                 E('textarea', {
-                    'id': 'nft-config-preview',
-                    'style': 'width: 100%; height: 600px; font-family: monospace; font-size: 12px; border: 1px solid #ccc; padding: 10px; background: #fafafa; resize: vertical;',
+                    'style': 'width: 100%; height: 600px; font-family: monospace; font-size: 12px; background: #f0f4f8; border: none; padding: 10px; color: #2c3e50;',
                     'readonly': true
-                }, nftConfig)
+                }, runConfig)
             ]);
         }, this);
 
         return m.render();
-    },
-
-    copyConfig: function() {
-        var el = document.getElementById('nft-config-preview');
-        if (el && el.value) {
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(el.value).then(function() {
-                    ui.addNotification(null, E('p', _('copied to clipboard')), 'info');
-                });
-            }
-        }
     }
 });

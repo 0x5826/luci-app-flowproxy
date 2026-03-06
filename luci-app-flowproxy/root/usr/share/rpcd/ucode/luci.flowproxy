@@ -23,11 +23,8 @@ const methods = {
         call: function() {
             let enabled = uci_get_config('global', 'enabled', '0');
             let lan_ip = '';
-            
-            // 一次性获取 nftables 状态 (检查表是否存在即可代表服务核心是否加载)
             let nft_running = (system('nft list table inet ' + NFT_TABLE + ' >/dev/null 2>&1') === 0);
             
-            // 复用 ubus 连接获取接口信息
             try {
                 let ubus_conn = connect();
                 if (ubus_conn) {
@@ -42,10 +39,7 @@ const methods = {
             return {
                 enabled: int(enabled),
                 running: nft_running ? 1 : 0,
-                nft: {
-                    tcp: nft_running ? 1 : 0, // 简化逻辑：表在即认为链在
-                    udp: nft_running ? 1 : 0
-                },
+                nft: { tcp: nft_running ? 1 : 0, udp: nft_running ? 1 : 0 },
                 proxy_ip: uci_get_config('global', 'proxy_ip', ''),
                 lan_ip: lan_ip,
                 interface: uci_get_config('global', 'interface', 'br-lan'),
@@ -135,6 +129,34 @@ const methods = {
                 }
             } catch (e) {}
             return { config: '' };
+        }
+    },
+
+    // 新增：获取运行时的内核真实状态 (Requirement 2)
+    get_runtime_config: {
+        call: function() {
+            let mark = uci_get_config('global', 'tproxy_mark', '100');
+            
+            // 抓取 nftables 实时规则
+            let nft_out = readfile(popen('nft list table inet ' + NFT_TABLE + ' 2>/dev/null'));
+            
+            // 抓取 ip rule 策略
+            let rule_out = readfile(popen('ip rule show 2>/dev/null'));
+            
+            // 抓取特定路由表内容
+            let route_out = readfile(popen('ip route show table ' + mark + ' 2>/dev/null'));
+            
+            let result = "";
+            if (nft_out) {
+                result += "--- [ nftables live rules ] ---\n" + nft_out + "\n\n";
+            } else {
+                result += "--- [ nftables live rules ] ---\n(table not found in kernel)\n\n";
+            }
+            
+            result += "--- [ ip rule list ] ---\n" + (rule_out || "(none)") + "\n\n";
+            result += "--- [ ip route table " + mark + " ] ---\n" + (route_out || "(none)");
+            
+            return { runtime: trim(result) };
         }
     }
 };
