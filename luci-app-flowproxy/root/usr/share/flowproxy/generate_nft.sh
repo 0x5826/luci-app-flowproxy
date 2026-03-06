@@ -70,7 +70,7 @@ get_file_elements() {
     echo "$elements"
 }
 
-# 规则处理逻辑
+# 规则处理逻辑：符合用户提供的 nft add 规范
 process_rule() {
     local section="$1"
     local proto="$2"
@@ -86,44 +86,41 @@ process_rule() {
     counter=$(uci -q get "$CONFIG.$section.counter")
     [ -z "$match_value" ] && return
 
-    # 1. 安全过滤：检查 Set 引用
+    # 安全检查：引用 Set 是否启用
     case "$match_value" in
         @*)
             local set_ref=$(echo "$match_value" | cut -d' ' -f1)
-            # 如果是引用代理服务器 IP，但 IP 未配置，则直接跳过该规则
             if [ "$set_ref" = "@proxy_server_ip" ]; then
                 local proxy_ip=$(uci -q get "$CONFIG.global.proxy_ip")
                 [ -z "$proxy_ip" ] && return
             else
-                # 检查其他 Set 是否启用
                 echo "$ENABLED_SETS" | grep -q "$set_ref" || return
             fi
             ;;
     esac
 
-    # 2. 清理
+    # 清理匹配内容
     match_value=$(echo "$match_value" | sed -E 's/ (return|accept|drop)$//g')
     local segment=""
 
-    # 3. 核心拼接逻辑
+    # 按照提供的逻辑规范进行拼接
     case "$match_type" in
-        src_mac)  segment="ip saddr != 0.0.0.0 ether saddr $match_value" ;;
-        src_ip)   segment="ip saddr $match_value" ;;
-        dst_ip)   segment="ip daddr $match_value" ;;
+        src_mac)  segment="ether saddr $match_value ip protocol $proto" ;;
+        src_ip)   segment="ip saddr $match_value ip protocol $proto" ;;
+        dst_ip)   segment="ip daddr $match_value ip protocol $proto" ;;
         src_port) segment="ip protocol $proto $proto sport $match_value" ;;
         dst_port) segment="ip protocol $proto $proto dport $match_value" ;;
-        *)        segment="$match_value" ;; # custom 类型直接使用，不加额外修饰
+        *)        segment="$match_value" ;; # custom 类型完全遵循用户输入
     esac
 
     local line="$segment"
+    # 始终按照规范加入 counter（如果用户勾选，或者可以根据需求强制加上）
     [ "$counter" = "1" ] && line="$line counter"
     line="$line $action"
 
-    # 4. 变量最终替换
     local proxy_ip_final=$(uci -q get "$CONFIG.global.proxy_ip")
     line=$(echo "$line" | sed "s/@proxy_server_ip/$proxy_ip_final/g")
 
-    # 二次确认 line 不为空（防止 sed 异常）
     [ -n "$line" ] && echo "        $line"
 }
 
@@ -133,7 +130,6 @@ cat > "$OUTPUT_FILE" << EOF
 table $NFT_TABLE {
 EOF
 
-# 生成 Set
 config_load "$CONFIG"
 for s in $(uci -q show "$CONFIG" | grep "=nftset" | cut -d'.' -f2 | cut -d'=' -f1); do
     gen_set_definition "$s" >> "$OUTPUT_FILE"
@@ -150,7 +146,7 @@ for s in $(uci -q show "$CONFIG" | grep "=tcp_rule" | cut -d'.' -f2 | cut -d'=' 
 done
 TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
 cat >> "$OUTPUT_FILE" << EOF
-        ip protocol tcp meta mark set $TPROXY_MARK
+        ip protocol tcp counter meta mark set $TPROXY_MARK
     }
 EOF
 
@@ -164,7 +160,7 @@ for s in $(uci -q show "$CONFIG" | grep "=udp_rule" | cut -d'.' -f2 | cut -d'=' 
     process_rule "$s" "udp" >> "$OUTPUT_FILE"
 done
 cat >> "$OUTPUT_FILE" << EOF
-        ip protocol udp meta mark set $TPROXY_MARK
+        ip protocol udp counter meta mark set $TPROXY_MARK
     }
 }
 EOF
