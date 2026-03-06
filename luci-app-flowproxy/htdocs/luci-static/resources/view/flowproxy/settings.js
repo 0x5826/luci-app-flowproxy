@@ -100,7 +100,9 @@ return L.view.extend({
         });
 
         if (isRunning) {
-            document.getElementById('proxy-ip').innerText = status.proxy_ip || '-';
+            var proxyIpEl = document.getElementById('proxy-ip');
+            if (proxyIpEl) proxyIpEl.innerText = status.proxy_ip || '-';
+
             var nftEl = document.getElementById('nft-status');
             if (nftEl && status.nft) {
                 var chains = [];
