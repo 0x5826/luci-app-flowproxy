@@ -59,14 +59,13 @@ return L.view.extend({
         m = new form.Map('flowproxy', _('flowproxy - preview'),
             _('view the generated configuration and live kernel state.'));
 
-        // 注入浅色主题高亮 CSS
+        // 注入极简高亮 CSS
         var style = E('style', {}, `
-            .nft-code-container { 
-                background: #fdfdfd; color: #333333; padding: 15px; border-radius: 4px; 
+            .nft-code-view { 
+                background: transparent; color: #333333; padding: 5px 0; 
                 font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-                font-size: 13px; line-height: 1.5; overflow-x: auto; white-space: pre; 
-                min-height: 400px; width: 100%; border: 1px solid #dddddd;
-                box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+                font-size: 13px; line-height: 1.6; overflow-x: auto; white-space: pre; 
+                width: 100%; border: none;
             }
             .nft-comment { color: #999988; font-style: italic; }
             .nft-keyword { color: #a626a1; font-weight: bold; }
@@ -85,13 +84,13 @@ return L.view.extend({
         o = s.taboption('generated', form.SectionValue, '_gen_val', form.NamedSection, 'global', 'flowproxy');
         o.subsection.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'style': 'padding: 10px; margin-bottom: 5px;' }, [
+                E('div', { 'style': 'padding: 5px 0; border-bottom: 1px solid #eee; margin-bottom: 10px;' }, [
                     E('button', {
                         'class': 'cbi-button cbi-button-apply',
                         'click': function() { ui.addNotification(null, E('p', _('copied')), 'info'); navigator.clipboard.writeText(genConfig); }
                     }, _('copy raw config'))
                 ]),
-                E('div', { 'class': 'nft-code-container' }, [
+                E('div', { 'class': 'nft-code-view' }, [
                     E('code', { 'id': 'gen-code' })
                 ])
             ]);
@@ -100,13 +99,13 @@ return L.view.extend({
         o = s.taboption('runtime', form.SectionValue, '_run_val', form.NamedSection, 'global', 'flowproxy');
         o.subsection.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'style': 'padding: 10px; margin-bottom: 5px;' }, [
+                E('div', { 'style': 'padding: 5px 0; border-bottom: 1px solid #eee; margin-bottom: 10px;' }, [
                     E('button', {
                         'class': 'cbi-button cbi-button-refresh',
                         'click': function() { location.reload(); }
                     }, _('refresh status'))
                 ]),
-                E('div', { 'class': 'nft-code-container' }, [
+                E('div', { 'class': 'nft-code-view' }, [
                     E('code', { 'id': 'run-code' })
                 ])
             ]);
