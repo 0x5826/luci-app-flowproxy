@@ -6,31 +6,29 @@
 
 return L.view.extend({
     load: function() {
-        // 先加载配置，确保渲染时能获取到最新的 nftset 节点
         return uci.load('flowproxy');
     },
 
     render: function() {
         var m, s, o;
 
-        // 动态获取当前所有定义的 nftset 名称
         var nftsets = uci.sections('flowproxy', 'nftset').map(function(s) {
             return '@' + s['.name'];
         });
         nftsets.push('@proxy_server_ip');
 
         m = new form.Map('flowproxy', _('flowproxy - rules'),
-            _('define nftables rules. you can select existing sets from the dropdown or type custom values.'));
+            _('define nftables rules. choose match type and provide value (IP, MAC, or @set).'));
 
         // 1. 快捷模板区域
         s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
         s.render = L.bind(function() {
             var presets = {
-                'local': { name: 'skip local', type: 'custom', val: 'meta nfproto ipv4 ip daddr type { local, anycast, multicast }', proto: 'both' },
-                'private': { name: 'skip private', type: 'dst_ip', val: '@private_dst_ip_v4', proto: 'both' },
-                'china': { name: 'skip china', type: 'dst_ip', val: '@chnroute_dst_ip_v4', proto: 'both' },
-                'src_mac': { name: 'skip mac', type: 'src_mac', val: '@no_proxy_src_mac', proto: 'both' },
-                'tcp_ports': { name: 'skip tcp ports', type: 'dst_port', val: '@no_proxy_dst_tcp_ports', proto: 'tcp' }
+                'local': { name: 'skip local (dst)', type: 'custom', val: 'meta nfproto ipv4 ip daddr type { local, anycast, multicast }', proto: 'both' },
+                'private': { name: 'skip private (dst)', type: 'dst_ip', val: '@private_dst_ip_v4', proto: 'both' },
+                'china': { name: 'skip china (dst)', type: 'dst_ip', val: '@chnroute_dst_ip_v4', proto: 'both' },
+                'src_mac': { name: 'skip mac (src)', type: 'src_mac', val: '@no_proxy_src_mac', proto: 'both' },
+                'tcp_ports': { name: 'skip ports (dst)', type: 'dst_port', val: '@no_proxy_dst_tcp_ports', proto: 'tcp' }
             };
 
             return E('div', { 'class': 'cbi-section-node' }, [
@@ -100,15 +98,10 @@ return L.view.extend({
         o.default = 'dst_ip';
         o.width = '10%';
 
-        // 改为传统的带建议值的输入框
         o = s.option(form.Value, 'match_value', _('match value'));
         o.rmempty = false;
         o.width = '35%';
-        
-        // 将所有 nftsets 添加为建议值，这会在输入框右侧生成下拉箭头
-        nftsets.forEach(function(set) {
-            o.value(set);
-        });
+        nftsets.forEach(function(set) { o.value(set); });
 
         o = s.option(form.Flag, 'counter', _('counter'));
         o.width = '5%';
