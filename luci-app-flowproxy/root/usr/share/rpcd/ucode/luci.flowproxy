@@ -59,17 +59,25 @@ const methods = {
             };
         }
     },
+get_logs: {
+    args: { lines: 100 },
+    call: function(request) {
+        let lines = request.args?.lines ?? 100;
+        let logs = [];
+        try {
+            if (access(LOG_FILE, 'r')) {
+                // 增加安全检测：只读取最后 64KB 内容，防止内存溢出
+                let log_stat = stat(LOG_FILE);
+                let content = "";
+                if (log_stat && log_stat.size > 65536) {
+                    content = readfile(popen('tail -c 65536 ' + LOG_FILE));
+                } else {
+                    content = readfile(LOG_FILE);
+                }
 
-    get_logs: {
-        args: { lines: 100 },
-        call: function(request) {
-            let lines = request.args?.lines ?? 100;
-            let logs = [];
-            try {
-                if (access(LOG_FILE, 'r')) {
-                    let content = readfile(LOG_FILE);
-                    if (content) {
-                        let log_lines = split(content, "\n");
+                if (content) {
+                    let log_lines = split(content, "\n");
+...
                         let total = length(log_lines);
                         let start = (total > lines) ? (total - lines) : 0;
                         for (let i = start; i < total; i++) {

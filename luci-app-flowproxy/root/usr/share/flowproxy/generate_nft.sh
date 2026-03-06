@@ -70,7 +70,6 @@ get_file_elements() {
     echo "$elements"
 }
 
-# 规则处理逻辑：符合用户提供的 nft add 规范
 process_rule() {
     local section="$1"
     local proto="$2"
@@ -86,7 +85,6 @@ process_rule() {
     counter=$(uci -q get "$CONFIG.$section.counter")
     [ -z "$match_value" ] && return
 
-    # 安全检查：引用 Set 是否启用
     case "$match_value" in
         @*)
             local set_ref=$(echo "$match_value" | cut -d' ' -f1)
@@ -99,32 +97,29 @@ process_rule() {
             ;;
     esac
 
-    # 清理匹配内容
     match_value=$(echo "$match_value" | sed -E 's/ (return|accept|drop)$//g')
     local segment=""
 
-    # 按照提供的逻辑规范进行拼接
     case "$match_type" in
         src_mac)  segment="ether saddr $match_value ip protocol $proto" ;;
         src_ip)   segment="ip saddr $match_value ip protocol $proto" ;;
         dst_ip)   segment="ip daddr $match_value ip protocol $proto" ;;
         src_port) segment="ip protocol $proto $proto sport $match_value" ;;
         dst_port) segment="ip protocol $proto $proto dport $match_value" ;;
-        *)        segment="$match_value" ;; # custom 类型完全遵循用户输入
+        *)        segment="$match_value" ;;
     esac
 
     local line="$segment"
-    # 始终按照规范加入 counter（如果用户勾选，或者可以根据需求强制加上）
     [ "$counter" = "1" ] && line="$line counter"
     line="$line $action"
 
     local proxy_ip_final=$(uci -q get "$CONFIG.global.proxy_ip")
-    line=$(echo "$line" | sed "s/@proxy_server_ip/$proxy_ip_final/g")
+    # 使用管道符作为 sed 界定符，防止内容包含斜杠导致的崩溃
+    line=$(echo "$line" | sed "s|@proxy_server_ip|$proxy_ip_final|g")
 
     [ -n "$line" ] && echo "        $line"
 }
 
-# --- 开始生成 ---
 cat > "$OUTPUT_FILE" << EOF
 #!/usr/sbin/nft -f
 table $NFT_TABLE {
@@ -135,7 +130,6 @@ for s in $(uci -q show "$CONFIG" | grep "=nftset" | cut -d'.' -f2 | cut -d'=' -f
     gen_set_definition "$s" >> "$OUTPUT_FILE"
 done
 
-# 构建 TCP 链
 cat >> "$OUTPUT_FILE" << EOF
     chain LAN_MARKFLOW_TCP {
         type filter hook prerouting priority mangle; policy accept;
@@ -148,10 +142,7 @@ TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
 cat >> "$OUTPUT_FILE" << EOF
         ip protocol tcp counter meta mark set $TPROXY_MARK
     }
-EOF
 
-# 构建 UDP 链
-cat >> "$OUTPUT_FILE" << EOF
     chain LAN_MARKFLOW_UDP {
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
