@@ -51,13 +51,11 @@ return L.view.extend({
                         uci.set('flowproxy', sid, 'action', 'return');
                         uci.set('flowproxy', sid, 'counter', '0');
                         
-                        // 使用 .then() 确保保存成功后再刷新
                         return uci.save().then(function() {
                             location.reload();
                         });
                     })
                 }, [ E('em', { 'class': 'icon-plus' }), ' ', p.name ]);
-                
                 container.querySelector('div').appendChild(btn);
             }, this);
 
@@ -70,6 +68,14 @@ return L.view.extend({
         s.anonymous = true;
         s.sortable = true;
         s.nodescription = true;
+
+        // 核心修复：重写 handleRemove，确保删除后立即保存并刷新
+        s.handleRemove = function(ev, section_id) {
+            uci.remove('flowproxy', section_id);
+            return uci.save().then(function() {
+                location.reload();
+            });
+        };
 
         s.handleAdd = function(ev) {
             var sid = uci.add('flowproxy', 'rule');
