@@ -35,7 +35,6 @@ get_file_elements() {
     
     local elements=""
     while IFS= read -r line; do
-        # 跳过空行和注释
         case "$line" in ''|\#*) continue ;; esac
         [ -n "$elements" ] && elements="${elements}, "
         elements="${elements}${line}"
@@ -78,28 +77,44 @@ echo "" > "$UDP_RULES_TMP"
 
 generate_user_rule() {
     local section="$1"
-    local enabled protocol content action counter
+    local enabled protocol match_type match_value action counter
     config_get_bool enabled "$section" enabled 1
     config_get protocol "$section" protocol "both"
-    config_get content "$section" content ""
+    config_get match_type "$section" match_type "custom"
+    config_get match_value "$section" match_value ""
     config_get action "$section" action "return"
     config_get_bool counter "$section" counter 0
 
-    [ "$enabled" -eq 0 ] || [ -z "$content" ] && return
+    [ "$enabled" -eq 0 ] || [ -z "$match_value" ] && return
 
-    # 构建规则行：匹配条件 + [计数器] + 动作
-    local rule_line="$content"
-    [ "$counter" -eq 1 ] && rule_line="$rule_line counter"
-    rule_line="$rule_line $action"
+    local segment_tcp=""
+    local segment_udp=""
 
-    # 替换变量
-    rule_line=$(echo "$rule_line" | sed "s/@proxy_server_ip/$PROXY_IP/g")
+    case "$match_type" in
+        src_mac)  segment_tcp="ether saddr $match_value"; segment_udp="ether saddr $match_value" ;;
+        src_ip)   segment_tcp="ip saddr $match_value"; segment_udp="ip saddr $match_value" ;;
+        dst_ip)   segment_tcp="ip daddr $match_value"; segment_udp="ip daddr $match_value" ;;
+        src_port) segment_tcp="tcp sport $match_value"; segment_udp="udp sport $match_value" ;;
+        dst_port) segment_tcp="tcp dport $match_value"; segment_udp="udp dport $match_value" ;;
+        *)        segment_tcp="$match_value"; segment_udp="$match_value" ;; # custom
+    esac
+
+    # 附加计数器和动作
+    local line_tcp="$segment_tcp"
+    local line_udp="$segment_udp"
+    [ "$counter" -eq 1 ] && line_tcp="$line_tcp counter" && line_udp="$line_udp counter"
+    line_tcp="$line_tcp $action"
+    line_udp="$line_udp $action"
+
+    # 变量替换
+    line_tcp=$(echo "$line_tcp" | sed "s/@proxy_server_ip/$PROXY_IP/g")
+    line_udp=$(echo "$line_udp" | sed "s/@proxy_server_ip/$PROXY_IP/g")
 
     if [ "$protocol" = "tcp" ] || [ "$protocol" = "both" ]; then
-        echo "        $rule_line" >> "$TCP_RULES_TMP"
+        echo "        $line_tcp" >> "$TCP_RULES_TMP"
     fi
     if [ "$protocol" = "udp" ] || [ "$protocol" = "both" ]; then
-        echo "        $rule_line" >> "$UDP_RULES_TMP"
+        echo "        $line_udp" >> "$UDP_RULES_TMP"
     fi
 }
 
@@ -129,7 +144,7 @@ table $NFT_TABLE {
 
     set no_proxy_dst_ip_v4 {
         type ipv4_addr
-        elements = { $SRC_IP_ELEMS }
+        elements = { $DST_IP_ELEMS }
         comment "不代理的目标IPv4地址"
     }
 
