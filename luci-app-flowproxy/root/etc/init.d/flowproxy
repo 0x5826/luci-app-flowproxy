@@ -7,293 +7,87 @@ USE_PROCD=1
 
 NAME="flowproxy"
 UCI_CONFIG="flowproxy"
-NFT_TABLE="flowproxy"
 LOG_FILE="/var/log/flowproxy.log"
+NFT_CONF="/tmp/flowproxy_nft.conf"
+GENERATE_SCRIPT="/usr/share/flowproxy/generate_nft.sh"
 
 log_msg() {
     local level="$1"; shift
     local msg="$*"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo "[$timestamp] [$level] $msg" >> "$LOG_FILE"
-    case "$level" in
-        error) logger -t "$NAME" -p daemon.error "$msg" ;;
-        warn)  logger -t "$NAME" -p daemon.warn "$msg" ;;
-        info)  logger -t "$NAME" -p daemon.info "$msg" ;;
-    esac
-}
-
-init_log() {
-    local log_size=$(uci_get "$UCI_CONFIG" global log_size 1024)
-    local log_count=$(uci_get "$UCI_CONFIG" global log_count 3)
-
-    mkdir -p "$(dirname "$LOG_FILE")"
-
-    # 检查并轮转日志文件（包括历史轮转文件）
-    local total_size=0
-    for i in $(seq 0 $log_count); do
-        local f="${LOG_FILE}${i:+.$i}"
-        [ -f "$f" ] && total_size=$((total_size + $(wc -c < "$f" 2>/dev/null || echo 0)))
-    done
-
-    if [ "$total_size" -gt $((log_size * 1024)) ]; then
-        # 删除最旧的轮转日志
-        [ -f "${LOG_FILE}.${log_count}" ] && rm -f "${LOG_FILE}.${log_count}"
-        # 轮转现有日志
-        for i in $(seq $((log_count - 1)) -1 1); do
-            [ -f "${LOG_FILE}.$i" ] && mv "${LOG_FILE}.$i" "${LOG_FILE}.$((i + 1))"
-        done
-        # 轮转当前日志
-        [ -f "$LOG_FILE" ] && mv "$LOG_FILE" "${LOG_FILE}.1"
-    fi
-    touch "$LOG_FILE"
 }
 
 check_config() {
-    local proxy_ip=$(uci_get "$UCI_CONFIG" global proxy_ip)
+    local proxy_ip=$(uci -q get "$UCI_CONFIG.global.proxy_ip")
     [ -z "$proxy_ip" ] && { log_msg error "proxy_ip not configured"; return 1; }
     return 0
 }
 
-create_nft_table() {
-    nft list table inet "$NFT_TABLE" >/dev/null 2>&1 || \
-        nft add table inet "$NFT_TABLE"
-}
-
-delete_nft_table() {
-    nft delete table inet "$NFT_TABLE" 2>/dev/null
-}
-
-create_nft_sets() {
-    config_foreach _create_set nftset
-}
-
-_create_set() {
-    local section="$1"
-    local name type enabled auto_generate file_path
-    
-    config_get name "$section" name
-    config_get type "$section" type "ipv4_addr"
-    config_get_bool enabled "$section" enabled 1
-    config_get_bool auto_generate "$section" auto_generate 0
-    config_get file_path "$section" file_path
-    
-    [ "$enabled" -eq 0 ] && return
-    
-    nft add set inet "$NFT_TABLE" "$name" "{ type $type; }" 2>/dev/null
-    
-    # 私有地址自动生成
-    if [ "$auto_generate" -eq 1 ] && [ "$name" = "private_dst_ip_v4" ]; then
-        nft add element inet "$NFT_TABLE" "$name" { \
-            10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16 \
-        } 2>/dev/null
-        log_msg info "Generated private IP ranges"
-    fi
-    
-    # 从文件加载
-    if [ -n "$file_path" ] && [ -f "$file_path" ]; then
-        local count=0 elements=""
-        while IFS= read -r line; do
-            case "$line" in ''|\#*) continue ;; esac
-            elements="${elements:+$elements, }$line"
-            count=$((count + 1))
-            [ $((count % 1000)) -eq 0 ] && {
-                nft add element inet "$NFT_TABLE" "$name" { $elements } 2>/dev/null
-                elements=""
-            }
-        done < "$file_path"
-        [ -n "$elements" ] && nft add element inet "$NFT_TABLE" "$name" { $elements } 2>/dev/null
-        log_msg info "Loaded $count entries into $name"
-    fi
-}
-
-delete_nft_sets() {
-    for name in no_proxy_src_mac no_proxy_src_ip_v4 no_proxy_dst_ip_v4 \
-                private_dst_ip_v4 chnroute_dst_ip_v4 no_proxy_dst_tcp_ports \
-                no_proxy_dst_udp_ports; do
-        nft delete set inet "$NFT_TABLE" "$name" 2>/dev/null
-    done
-}
-
-# 获取排序后的规则列表
-get_sorted_rules() {
-    local proto="$1"
-    local rules=""
-
-    config_list_foreach "$UCI_CONFIG" global "${proto}_rules" append_rule || true
-
-    # 按 priority 排序输出规则
-    for section in $(uci show "$UCI_CONFIG" | grep "=rule" | cut -d'=' -f1 | cut -d'.' -f2); do
-        local rule_proto protocol priority
-        config_get rule_proto "$section" protocol
-        [ "$rule_proto" != "$proto" ] && continue
-        config_get priority "$section" priority "100"
-        echo "$priority $section"
-    done | sort -n | cut -d' ' -f2
-}
-
-append_rule() {
-    local rule="$1"
-    echo "$rule"
-}
-
-# 创建规则链（TCP 或 UDP）
-create_chain() {
-    local proto="$1"  # tcp 或 udp
-    local proxy_ip=$(uci_get "$UCI_CONFIG" global proxy_ip)
-    local tproxy_mark=$(uci_get "$UCI_CONFIG" global tproxy_mark "100")
-    local chain="LAN_MARKFLOW_${proto^^}"
-
-    nft add chain inet "$NFT_TABLE" "$chain" \
-        "{ type filter hook prerouting priority 100; policy accept; }"
-
-    # ===== 基础规则（固定，不可配置）=====
-    # 跳过本地/任播/组播地址
-    nft add rule inet "$NFT_TABLE" "$chain" \
-        fib daddr type { unspec, local, anycast, multicast } counter return
-
-    # 跳过代理服务器自身流量（防止环路）
-    nft add rule inet "$NFT_TABLE" "$chain" \
-        ip saddr "$proxy_ip" ip protocol $proto counter return
-
-    # ===== 用户规则（按 priority 排序）=====
-    for section in $(get_sorted_rules "$proto"); do
-        _add_rule "$section" "$proto"
-    done
-}
-
-_add_rule() {
-    local section="$1"
-    local target_proto="$2"
-    local name enabled protocol
-
-    config_get_bool enabled "$section" enabled 1
-    [ "$enabled" -eq 0 ] && return
-
-    config_get protocol "$section" protocol
-    [ "$protocol" != "$target_proto" ] && return
-
-    config_get name "$section" name
-
-    local use_src_mac use_src_ip use_dst_ip use_private use_chnroute use_ports
-    config_get_bool use_src_mac "$section" use_no_proxy_src_mac 1
-    config_get_bool use_src_ip "$section" use_no_proxy_src_ip 1
-    config_get_bool use_dst_ip "$section" use_no_proxy_dst_ip 1
-    config_get_bool use_private "$section" use_private_dst_ip 1
-    config_get_bool use_chnroute "$section" use_chnroute_dst_ip 1
-    config_get_bool use_ports "$section" use_no_proxy_ports 1
-
-    local tproxy_mark=$(uci_get "$UCI_CONFIG" global tproxy_mark "100")
-    local chain="LAN_MARKFLOW_${target_proto^^}"
-
-    log_msg debug "Adding $target_proto rule: $name"
-
-    # 用户规则：跳过条件（界面可配置）
-    [ "$use_src_mac" -eq 1 ] && \
-        nft add rule inet "$NFT_TABLE" "$chain" \
-            ether saddr @no_proxy_src_mac ip protocol $target_proto counter return
-
-    [ "$use_src_ip" -eq 1 ] && \
-        nft add rule inet "$NFT_TABLE" "$chain" \
-            ip saddr @no_proxy_src_ip_v4 ip protocol $target_proto counter return
-
-    [ "$use_dst_ip" -eq 1 ] && \
-        nft add rule inet "$NFT_TABLE" "$chain" \
-            ip daddr @no_proxy_dst_ip_v4 ip protocol $target_proto counter return
-
-    [ "$use_private" -eq 1 ] && \
-        nft add rule inet "$NFT_TABLE" "$chain" \
-            ip daddr @private_dst_ip_v4 ip protocol $target_proto counter return
-
-    [ "$use_chnroute" -eq 1 ] && \
-        nft add rule inet "$NFT_TABLE" "$chain" \
-            ip daddr @chnroute_dst_ip_v4 ip protocol $target_proto counter return
-
-    if [ "$use_ports" -eq 1 ]; then
-        if [ "$target_proto" = "tcp" ]; then
-            nft add rule inet "$NFT_TABLE" "$chain" \
-                tcp dport @no_proxy_dst_tcp_ports counter return
+apply_nft_rules() {
+    log_msg info "Generating nftables configuration..."
+    if [ -x "$GENERATE_SCRIPT" ]; then
+        "$GENERATE_SCRIPT" > "$NFT_CONF"
+        if [ $? -eq 0 ]; then
+            log_msg info "Applying nftables rules from $NFT_CONF"
+            nft -f "$NFT_CONF"
+            return $?
         else
-            nft add rule inet "$NFT_TABLE" "$chain" \
-                udp dport @no_proxy_dst_udp_ports counter return
+            log_msg error "Failed to generate nftables config"
+            return 1
         fi
+    else
+        log_msg error "Generator script $GENERATE_SCRIPT not found or not executable"
+        return 1
     fi
-
-    # 标记流量走代理
-    nft add rule inet "$NFT_TABLE" "$chain" \
-        ip protocol $target_proto counter meta mark set "$tproxy_mark"
-
-    log_msg info "$target_proto rule '$name' added"
-}
-
-delete_chains() {
-    nft delete chain inet "$NFT_TABLE" LAN_MARKFLOW_TCP 2>/dev/null
-    nft delete chain inet "$NFT_TABLE" LAN_MARKFLOW_UDP 2>/dev/null
 }
 
 add_route() {
-    local proxy_ip=$(uci_get "$UCI_CONFIG" global proxy_ip)
-    local interface=$(uci_get "$UCI_CONFIG" global interface "br-lan")
-    local tproxy_mark=$(uci_get "$UCI_CONFIG" global tproxy_mark "100")
+    local proxy_ip=$(uci -q get "$UCI_CONFIG.global.proxy_ip")
+    local interface=$(uci -q get "$UCI_CONFIG.global.interface" || echo "br-lan")
+    local tproxy_mark=$(uci -q get "$UCI_CONFIG.global.tproxy_mark" || echo "100")
     
-    ip rule delete fwmark "$tproxy_mark" lookup "$tproxy_mark" 2>/dev/null
+    ip rule del fwmark "$tproxy_mark" lookup "$tproxy_mark" 2>/dev/null
     ip route flush table "$tproxy_mark" 2>/dev/null
+    
     ip route add default via "$proxy_ip" dev "$interface" table "$tproxy_mark"
     ip rule add fwmark "$tproxy_mark" lookup "$tproxy_mark"
     log_msg info "Route added: via $proxy_ip dev $interface table $tproxy_mark"
 }
 
 delete_route() {
-    local tproxy_mark=$(uci_get "$UCI_CONFIG" global tproxy_mark "100")
-    ip rule delete fwmark "$tproxy_mark" lookup "$tproxy_mark" 2>/dev/null
+    local tproxy_mark=$(uci -q get "$UCI_CONFIG.global.tproxy_mark" || echo "100")
+    ip rule del fwmark "$tproxy_mark" lookup "$tproxy_mark" 2>/dev/null
     ip route flush table "$tproxy_mark" 2>/dev/null
 }
 
-start_service() {
-    local enabled=$(uci_get "$UCI_CONFIG" global enabled 0)
+delete_nft() {
+    nft delete table inet flowproxy 2>/dev/null
+    log_msg info "Removed nftables table 'flowproxy'"
+}
 
-    # 创建一个 procd 实例防止 crash loop
-    procd_open_instance "flowproxy"
-    procd_set_param command /bin/true
-    procd_set_param respawn 0
-    procd_close_instance
+start_service() {
+    local enabled=$(uci -q get "$UCI_CONFIG.global.enabled" || echo 0)
 
     [ "$enabled" -eq 0 ] && {
         log_msg info "FlowProxy is disabled"
         return 0
     }
 
-    init_log
     log_msg info "Starting FlowProxy..."
 
     check_config || return 1
-
-    config_load "$UCI_CONFIG"
-
-    create_nft_table
-    create_nft_sets
-    create_chain tcp
-    create_chain udp
+    apply_nft_rules || return 1
     add_route
 
-    log_msg info "FlowProxy started"
+    log_msg info "FlowProxy service started successfully"
 }
 
 stop_service() {
     log_msg info "Stopping FlowProxy..."
     delete_route
-    delete_chains
-    delete_nft_sets
-    delete_nft_table
-    log_msg info "FlowProxy stopped"
-}
-
-restart_service() {
-    stop_service
-    start_service
-}
-
-reload_service() {
-    restart_service
+    delete_nft
+    log_msg info "FlowProxy service stopped"
 }
 
 service_triggers() {
