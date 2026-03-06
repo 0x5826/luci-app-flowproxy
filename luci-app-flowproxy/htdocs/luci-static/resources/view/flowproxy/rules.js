@@ -20,8 +20,8 @@ return L.view.extend({
         m = new form.Map('flowproxy', _('flowproxy - rules'),
             _('define nftables rules. choose match type and provide value (IP, MAC, or @set).'));
 
-        // 1. 快捷模板与重置区域
-        s = m.section(form.NamedSection, '_templates', 'flowproxy', _('rule templates'));
+        // 1. 快捷模板区域 (仅保留单个添加按钮)
+        s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
         s.render = L.bind(function() {
             var presets = {
                 'local': { name: 'skip local (dst)', type: 'custom', val: 'meta nfproto ipv4 ip daddr type { local, anycast, multicast }', proto: 'both' },
@@ -37,12 +37,9 @@ return L.view.extend({
                 E('div', { 'style': 'padding: 10px; display: flex; flex-wrap: wrap; gap: 8px;' })
             ]);
 
-            var btnGroup = container.querySelector('div');
-
-            // 循环生成单个添加按钮
             Object.keys(presets).forEach(function(k) {
                 var p = presets[k];
-                btnGroup.appendChild(E('button', {
+                container.querySelector('div').appendChild(E('button', {
                     'class': 'cbi-button cbi-button-apply',
                     'click': ui.createHandlerFn(this, function() {
                         var sid = uci.add('flowproxy', 'rule');
@@ -58,19 +55,29 @@ return L.view.extend({
                 }, [ E('em', { 'class': 'icon-plus' }), ' ', p.name ]));
             }, this);
 
-            // 增加“恢复默认模版”按钮
-            btnGroup.appendChild(E('button', {
+            return container;
+        }, this);
+
+        // 2. 规则列表
+        s = m.section(form.TableSection, 'rule', _('matching rules'));
+        s.addremove = true;
+        s.anonymous = true;
+        s.sortable = true;
+        s.nodescription = true;
+
+        // 核心改动：在表格底部添加按钮旁边增加“恢复默认”按钮
+        s.renderSectionAdd = function(extra_class) {
+            var node = form.TableSection.prototype.renderSectionAdd.apply(this, [extra_class]);
+            
+            var resetBtn = E('button', {
                 'class': 'cbi-button cbi-button-reset',
-                'style': 'margin-left: auto; border: 1px solid #cc0000; color: #cc0000;',
+                'style': 'margin-left: 10px; border: 1px solid #cc0000; color: #cc0000;',
+                'title': _('Delete all current rules and load recommended templates'),
                 'click': ui.createHandlerFn(this, function() {
                     if (confirm(_('this will delete ALL current rules and generate default templates. are you sure?'))) {
-                        // 1. 查找并删除所有现有 rule 节点
                         var existing = uci.sections('flowproxy', 'rule');
-                        existing.forEach(function(r) {
-                            uci.remove('flowproxy', r['.name']);
-                        });
+                        existing.forEach(function(r) { uci.remove('flowproxy', r['.name']); });
 
-                        // 2. 依次添加预设的默认全套模版
                         var default_rules = [
                             { name: 'skip local (dst)', type: 'custom', val: 'meta nfproto ipv4 ip daddr type { local, anycast, multicast }', proto: 'both' },
                             { name: 'skip proxy server', type: 'src_ip', val: '@proxy_server_ip', proto: 'both' },
@@ -91,22 +98,14 @@ return L.view.extend({
                             uci.set('flowproxy', sid, 'counter', '0');
                         });
 
-                        return uci.save().then(function() {
-                            location.reload();
-                        });
+                        return uci.save().then(function() { location.reload(); });
                     }
                 })
-            }, [ E('em', { 'class': 'icon-reload' }), ' ', _('reset to default templates') ]));
+            }, [ E('em', { 'class': 'icon-reload' }), ' ', _('reset to default') ]);
 
-            return container;
-        }, this);
-
-        // 2. 规则列表
-        s = m.section(form.TableSection, 'rule', _('matching rules'));
-        s.addremove = true;
-        s.anonymous = true;
-        s.sortable = true;
-        s.nodescription = true;
+            node.appendChild(resetBtn);
+            return node;
+        };
 
         s.renderRowActions = function(section_id) {
             var node = form.TableSection.prototype.renderRowActions.apply(this, [section_id]);
