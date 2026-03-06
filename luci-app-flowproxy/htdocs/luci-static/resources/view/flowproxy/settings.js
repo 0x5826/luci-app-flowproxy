@@ -60,12 +60,12 @@ return L.view.extend({
         m = new form.Map('flowproxy', _('flowproxy'),
             _('traffic diversion based on nftables rules for routing specific traffic to proxy software.'));
 
-        s = m.section(form.NamedSection, '_status', 'flowproxy', _('service status'));
+        s = m.section(form.NamedSection, '_status', 'flowproxy', _('service control panel'));
         s.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'class': 'table' }, [
+                E('div', { 'class': 'table', 'style': 'margin-bottom: 15px;' }, [
                     E('div', { 'class': 'tr' }, [
-                        E('div', { 'class': 'td left', 'style': 'width: 30%' }, _('service status')),
+                        E('div', { 'class': 'td left', 'style': 'width: 30%; font-weight: bold;' }, _('service status')),
                         E('div', { 'class': 'td left', 'id': 'service-status' }, _('loading...'))
                     ]),
                     E('div', { 'class': 'tr', 'id': 'nft-status-row', 'style': 'display: none;' }, [
@@ -85,10 +85,29 @@ return L.view.extend({
                         E('div', { 'class': 'td left', 'id': 'tproxy-mark' }, '-')
                     ])
                 ]),
-                E('div', { 'class': 'cbi-page-actions', 'style': 'margin-top: 10px' }, [
-                    E('button', { 'class': 'cbi-button cbi-button-apply', 'click': L.bind(this.handleStart, this), 'id': 'btn-start' }, _('start')),
-                    E('button', { 'class': 'cbi-button cbi-button-reset', 'click': L.bind(this.handleStop, this), 'id': 'btn-stop' }, _('stop')),
-                    E('button', { 'class': 'cbi-button cbi-button-reload', 'click': L.bind(this.handleRestart, this) }, _('restart'))
+                // 美化后的控制按钮组
+                E('div', { 
+                    'style': 'background: #f4f4f4; padding: 15px; border-radius: 6px; border: 1px solid #ddd; display: flex; align-items: center; gap: 10px;' 
+                }, [
+                    E('button', { 
+                        'class': 'cbi-button cbi-button-save', 
+                        'style': 'flex: 1; height: 36px; font-weight: bold;',
+                        'click': L.bind(this.handleStart, this), 
+                        'id': 'btn-start' 
+                    }, [ E('em', { 'class': 'icon-play' }), ' ', _('start') ]),
+                    
+                    E('button', { 
+                        'class': 'cbi-button cbi-button-reset', 
+                        'style': 'flex: 1; height: 36px; font-weight: bold;',
+                        'click': L.bind(this.handleStop, this), 
+                        'id': 'btn-stop' 
+                    }, [ E('em', { 'class': 'icon-stop' }), ' ', _('stop') ]),
+                    
+                    E('button', { 
+                        'class': 'cbi-button cbi-button-apply', 
+                        'style': 'flex: 1; height: 36px; font-weight: bold;',
+                        'click': L.bind(this.handleRestart, this) 
+                    }, [ E('em', { 'class': 'icon-reload' }), ' ', _('restart') ])
                 ])
             ]);
         }, this);
@@ -138,7 +157,6 @@ return L.view.extend({
             ]);
         }, this);
 
-        // 首次立即更新状态
         this.updateStatus(status);
         this.pollStatus();
 
