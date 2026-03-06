@@ -65,10 +65,8 @@ return L.view.extend({
         s.sortable = true;
         s.nodescription = true;
 
-        // 核心改动：在表格底部添加按钮旁边增加“恢复默认”按钮
         s.renderSectionAdd = function(extra_class) {
             var node = form.TableSection.prototype.renderSectionAdd.apply(this, [extra_class]);
-            
             var resetBtn = E('button', {
                 'class': 'cbi-button cbi-button-reset',
                 'style': 'margin-left: 10px; border: 1px solid #cc0000; color: #cc0000;',
@@ -79,7 +77,7 @@ return L.view.extend({
                         existing.forEach(function(r) { uci.remove('flowproxy', r['.name']); });
 
                         var default_rules = [
-                            { name: 'skip local (dst)', type: 'custom', val: 'meta nfproto ipv4 ip daddr type { local, anycast, multicast }', proto: 'both' },
+                            { name: 'skip local (dst)', type: 'custom', val: 'fib daddr type { local, anycast, multicast }', proto: 'both' },
                             { name: 'skip proxy server', type: 'src_ip', val: '@proxy_server_ip', proto: 'both' },
                             { name: 'skip mac (src)', type: 'src_mac', val: '@no_proxy_src_mac', proto: 'both' },
                             { name: 'skip private (dst)', type: 'dst_ip', val: '@private_dst_ip_v4', proto: 'both' },
@@ -102,7 +100,6 @@ return L.view.extend({
                     }
                 })
             }, [ E('em', { 'class': 'icon-reload' }), ' ', _('reset to default') ]);
-
             node.appendChild(resetBtn);
             return node;
         };
@@ -135,25 +132,32 @@ return L.view.extend({
             return uci.save().then(function() { location.reload(); });
         };
 
+        // 列宽优化分配
         o = s.option(form.Flag, 'enabled', _('enabled'));
-        o.width = '5%';
+        o.width = '8%';
+
         o = s.option(form.Value, 'name', _('name'));
         o.rmempty = false;
-        o.width = '10%';
+        o.width = '12%';
+
         o = s.option(form.ListValue, 'protocol', _('protocol'));
         o.value('both', 'both'); o.value('tcp', 'tcp'); o.value('udp', 'udp');
         o.width = '10%';
+
         o = s.option(form.ListValue, 'match_type', _('match type'));
         o.value('dst_ip', 'dest ip'); o.value('src_ip', 'src ip'); o.value('src_mac', 'src mac');
         o.value('dst_port', 'dest port'); o.value('src_port', 'src port'); o.value('custom', 'custom (raw)');
         o.default = 'dst_ip';
-        o.width = '10%';
+        o.width = '15%';
+
         o = s.option(form.Value, 'match_value', _('match value'));
         o.rmempty = false;
-        o.width = '35%';
+        o.width = '25%';
         nftsets.forEach(function(set) { o.value(set); });
+
         o = s.option(form.Flag, 'counter', _('counter'));
-        o.width = '5%';
+        o.width = '10%';
+
         o = s.option(form.ListValue, 'action', _('action'));
         o.value('return', 'return'); o.value('accept', 'accept'); o.value('drop', 'drop');
         o.default = 'return';
