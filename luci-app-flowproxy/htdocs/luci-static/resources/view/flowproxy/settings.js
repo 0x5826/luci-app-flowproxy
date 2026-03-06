@@ -92,8 +92,8 @@ return L.view.extend({
             var statusEl = document.getElementById('service-status');
             if (statusEl) {
                 statusEl.innerHTML = isRunning ? 
-                    '<span style="color: green; font-weight: bold;">● ' + _('running') + '</span>' : 
-                    '<span style="color: red; font-weight: bold;">● ' + _('stopped') + '</span>';
+                    '<span style="color: green; font-weight: bold;">' + _('running') + '</span>' : 
+                    '<span style="color: red; font-weight: bold;">' + _('stopped') + '</span>';
             }
 
             ['nft-status-row', 'proxy-ip-row'].forEach(function(id) {
