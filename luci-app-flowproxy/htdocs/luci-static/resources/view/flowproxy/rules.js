@@ -6,45 +6,23 @@
 
 return L.view.extend({
     load: function() {
+        // 先加载配置，确保渲染时能获取到最新的 nftset 节点
         return uci.load('flowproxy');
     },
 
     render: function() {
         var m, s, o;
 
-        // 预先获取所有定义的 nftset 名称
+        // 动态获取当前所有定义的 nftset 名称
         var nftsets = uci.sections('flowproxy', 'nftset').map(function(s) {
             return '@' + s['.name'];
         });
         nftsets.push('@proxy_server_ip');
 
         m = new form.Map('flowproxy', _('flowproxy - rules'),
-            _('define nftables rules. matches with "return" action will bypass the proxy.'));
+            _('define nftables rules. you can select existing sets from the dropdown or type custom values.'));
 
-        // 1. 可用变量参考 (放在最上方)
-        s = m.section(form.NamedSection, '_vars_helper', 'flowproxy', _('available sets & variables'));
-        s.render = L.bind(function() {
-            return E('div', { 'class': 'cbi-section-node', 'style': 'padding: 10px; background: #f8f9fa; border: 1px solid #ddd; margin-bottom: 15px;' }, [
-                E('p', { 'style': 'margin: 0 0 8px 0; font-weight: bold; color: #555;' }, _('Click to copy to clipboard and paste into "match value":')),
-                E('div', { 'style': 'display: flex; flex-wrap: wrap; gap: 6px;' }, nftsets.map(function(s) {
-                    return E('span', {
-                        'class': 'label',
-                        'style': 'cursor: pointer; background: #eee; border: 1px solid #ccc; padding: 2px 8px; border-radius: 4px; font-family: monospace; color: #333;',
-                        'title': _('Click to copy'),
-                        'click': function(ev) {
-                            var text = ev.target.innerText;
-                            if (navigator.clipboard) {
-                                navigator.clipboard.writeText(text).then(function() {
-                                    ui.addNotification(null, E('p', _('Copied: %s').format(text)), 'info');
-                                });
-                            }
-                        }
-                    }, s);
-                }))
-            ]);
-        }, this);
-
-        // 2. 快捷模板区域
+        // 1. 快捷模板区域
         s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
         s.render = L.bind(function() {
             var presets = {
@@ -79,7 +57,7 @@ return L.view.extend({
             ]);
         }, this);
 
-        // 3. 规则列表 (TableSection)
+        // 2. 规则列表 (TableSection)
         s = m.section(form.TableSection, 'rule', _('matching rules'));
         s.addremove = true;
         s.anonymous = true;
@@ -122,20 +100,15 @@ return L.view.extend({
         o.default = 'dst_ip';
         o.width = '10%';
 
+        // 改为传统的带建议值的输入框
         o = s.option(form.Value, 'match_value', _('match value'));
         o.rmempty = false;
         o.width = '35%';
-        // 保留 datalist 补全，但移除冗余的 row description
-        o.renderWidget = function(section_id, option_id, formatvalue) {
-            var node = form.Value.prototype.renderWidget.apply(this, [section_id, option_id, formatvalue]);
-            var input = node.querySelector('input');
-            var dlId = 'nftsets-list-' + section_id;
-            var dl = E('datalist', { id: dlId }, nftsets.map(function(s) { return E('option', { value: s }); }));
-            input.setAttribute('list', dlId);
-            input.setAttribute('autocomplete', 'off');
-            node.appendChild(dl);
-            return node;
-        };
+        
+        // 将所有 nftsets 添加为建议值，这会在输入框右侧生成下拉箭头
+        nftsets.forEach(function(set) {
+            o.value(set);
+        });
 
         o = s.option(form.Flag, 'counter', _('counter'));
         o.width = '5%';
