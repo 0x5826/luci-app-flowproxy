@@ -64,7 +64,7 @@ const methods = {
                         let start = (total > lines) ? (total - lines) : 0;
                         for (let i = start; i < total; i++) {
                             if (log_lines[i]) {
-                                logs.push(log_lines[i]);
+                                push(logs, log_lines[i]);
                             }
                         }
                     }
@@ -93,18 +93,18 @@ const methods = {
 
             // 1. 尝试通过 ubus 获取
             try {
-                let ubus = connect();
-                if (ubus) {
-                    let result = ubus.call('network.interface', 'dump', {});
+                let ubus_conn = connect();
+                if (ubus_conn) {
+                    let result = ubus_conn.call('network.interface', 'dump', {});
                     if (result && result.interface) {
                         for (let iface in result.interface) {
                             if (iface && iface.device && !seen[iface.device]) {
                                 seen[iface.device] = true;
-                                interfaces.push({ name: iface.device, mac: '' });
+                                push(interfaces, { name: iface.device, mac: '' });
                             }
                         }
                     }
-                    ubus.disconnect();
+                    ubus_conn.disconnect();
                 }
             } catch (e) {}
 
@@ -112,10 +112,12 @@ const methods = {
             if (length(interfaces) === 0) {
                 try {
                     let devs = lsdir('/sys/class/net');
-                    for (let dev in devs) {
-                        if (dev != '.' && dev != '..' && dev != 'lo' && !seen[dev]) {
-                            seen[dev] = true;
-                            interfaces.push({ name: dev, mac: '' });
+                    if (devs) {
+                        for (let dev in devs) {
+                            if (dev != '.' && dev != '..' && dev != 'lo' && !seen[dev]) {
+                                seen[dev] = true;
+                                push(interfaces, { name: dev, mac: '' });
+                            }
                         }
                     }
                 } catch (e) {}
@@ -152,7 +154,7 @@ const methods = {
             try {
                 if (access('/tmp/flowproxy_nft.conf', 'r')) {
                     let content = readfile('/tmp/flowproxy_nft.conf');
-                    if (content) return content.trim();
+                    if (content) return trim(content);
                 }
             } catch (e) {}
             return '';
