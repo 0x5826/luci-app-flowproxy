@@ -49,7 +49,6 @@ return L.view.extend({
                     'style': 'padding: 0 6px; font-size: 0.75rem; height: 22px; line-height: 22px; opacity: 0.8; margin-bottom: 4px;',
                     'click': ui.createHandlerFn(this, function() {
                         var sid = uci.add('flowproxy', type);
-                        uci.set('flowproxy', sid, 'name', 'skip ' + p.name);
                         uci.set('flowproxy', sid, 'enabled', '1');
                         uci.set('flowproxy', sid, 'match_type', p.type);
                         uci.set('flowproxy', sid, 'match_value', match_val);
@@ -125,22 +124,20 @@ return L.view.extend({
                         if (confirm(_('this will delete ALL current %s rules and generate default templates. are you sure?').format(label))) {
                             uci.sections('flowproxy', type).forEach(function(r) { uci.remove('flowproxy', r['.name']); });
                             var defs = [
-                                { n: 'skip local (dst)', t: 'custom', v: 'fib daddr type { unspec, local, anycast, multicast }' },
-                                { n: 'skip mac (src)', t: 'src_mac', v: '@no_proxy_src_mac' },
-                                { n: 'skip private (dst)', t: 'dst_ip', v: '@private_dst_ip_v4' },
-                                { n: 'skip china (dst)', t: 'dst_ip', v: '@chnroute_dst_ip_v4' }
+                                { t: 'src_mac', v: '@no_proxy_src_mac' },
+                                { t: 'dst_ip', v: '@private_dst_ip_v4' },
+                                { t: 'dst_ip', v: '@chnroute_dst_ip_v4' }
                             ];
 
                             // 添加端口绕过规则
                             if (type === 'tcp_rule') {
-                                defs.push({ n: 'skip ports (dst)', t: 'dst_port', v: '@no_proxy_dst_tcp_ports' });
+                                defs.push({ t: 'dst_port', v: '@no_proxy_dst_tcp_ports' });
                             } else if (type === 'udp_rule') {
-                                defs.push({ n: 'skip ports (dst)', t: 'dst_port', v: '@no_proxy_dst_udp_ports' });
+                                defs.push({ t: 'dst_port', v: '@no_proxy_dst_udp_ports' });
                             }
 
                             defs.forEach(function(r) {
                                 var sid = uci.add('flowproxy', type);
-                                uci.set('flowproxy', sid, 'name', r.n);
                                 uci.set('flowproxy', sid, 'enabled', '1');
                                 uci.set('flowproxy', sid, 'match_type', r.t);
                                 uci.set('flowproxy', sid, 'match_value', r.v);
@@ -172,7 +169,6 @@ return L.view.extend({
 
             s.handleAdd = function(ev) {
                 var sid = uci.add('flowproxy', type);
-                uci.set('flowproxy', sid, 'name', 'skip private (dst)');
                 uci.set('flowproxy', sid, 'enabled', '1');
                 uci.set('flowproxy', sid, 'match_type', 'dst_ip');
                 uci.set('flowproxy', sid, 'match_value', '@private_dst_ip_v4');
@@ -182,18 +178,17 @@ return L.view.extend({
             };
 
             o = s.option(form.Flag, 'enabled', _('enabled')); o.width = '8%';
-            o = s.option(form.Value, 'name', _('name')); o.rmempty = false; o.width = '10%';
             o = s.option(form.ListValue, 'match_type', _('match type'));
             o.value('dst_ip', 'dest ip'); o.value('src_ip', 'src ip'); o.value('src_mac', 'src mac');
             o.value('dst_port', 'dest port'); o.value('src_port', 'src port'); o.value('custom', 'custom (raw)');
-            o.default = 'dst_ip'; o.width = '12%';
+            o.default = 'dst_ip'; o.width = '15%';
             o = s.option(form.Value, 'match_value', _('match value'));
-            o.rmempty = false; o.width = '32%';
+            o.rmempty = false; o.width = '45%';
             nftsets.forEach(function(set) { o.value(set); });
             o = s.option(form.Flag, 'counter', _('counter')); o.width = '8%';
             o = s.option(form.ListValue, 'action', _('action'));
             o.value('return', 'return'); o.value('accept', 'accept'); o.value('drop', 'drop');
-            o.default = 'return'; o.width = '10%';
+            o.default = 'return'; o.width = '12%';
         }, this);
 
         renderTable(m, 'tcp_rule', _('TCP Matching Rules'), 'tcp_enabled');

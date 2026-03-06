@@ -42,6 +42,17 @@ return L.view.extend({
         o.datatype = 'uinteger';
         o.default = '3';
 
+        // 样式适配
+        var style = E('style', {}, `
+            #log-content { 
+                width: 100%; height: 600px; font-family: monospace; font-size: 12px; 
+                background: #f5f5f5 !important; color: #333 !important; 
+                border: 1px solid #ccc !important; padding: 10px; resize: vertical; 
+                border-radius: 4px;
+            }
+        `);
+        document.head.appendChild(style);
+
         // 日志查看区块
         s = m.section(form.NamedSection, '_logs', 'flowproxy', _('log output'));
         s.render = L.bind(function() {
@@ -52,7 +63,6 @@ return L.view.extend({
                 ]),
                 E('textarea', {
                     'id': 'log-content',
-                    'style': 'width: 100%; height: 600px; font-family: monospace; font-size: 12px; background: #fff; border: 1px solid #ddd; padding: 10px; resize: vertical;',
                     'readonly': true
                 }, _('loading logs...'))
             ]);

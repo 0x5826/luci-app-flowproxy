@@ -63,8 +63,8 @@ return L.view.extend({
 
         var style = E('style', {}, `
             .nft-code-view { 
-                background: #fafafa !important; 
-                color: #383a42 !important; 
+                background: #f5f5f5 !important; 
+                color: #333333 !important; 
                 padding: 20px !important; 
                 margin: 10px 0 !important;
                 font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace !important;
@@ -74,49 +74,18 @@ return L.view.extend({
                 white-space: pre-wrap !important; 
                 word-break: break-all !important;
                 width: 100% !important; 
-                border: 1px solid #eeeeee !important;
+                border: 1px solid #cccccc !important;
                 display: block !important;
                 min-height: 100px;
                 border-radius: 4px;
             }
-            .nft-comment { color: #a0a1a7 !important; font-style: italic !important; }
+            .nft-comment { color: #777777 !important; font-style: italic !important; }
             .nft-keyword { color: #a626a1 !important; font-weight: bold !important; }
             .nft-proto { color: #4078f2 !important; }
             .nft-match { color: #986801 !important; }
             .nft-action { color: #e45649 !important; font-weight: bold !important; }
             .nft-variable { color: #50a14f !important; font-weight: bold !important; }
-            .nft-bracket { color: #383a42 !important; }
-
-            /* 黑暗模式适配 (支持系统级和 Argon 等主题) */
-            @media (prefers-color-scheme: dark) {
-                .nft-code-view {
-                    background: #1e1e1e !important;
-                    color: #d4d4d4 !important;
-                    border: 1px solid #333333 !important;
-                }
-                .nft-comment { color: #6a9955 !important; }
-                .nft-keyword { color: #569cd6 !important; }
-                .nft-proto { color: #9cdcfe !important; }
-                .nft-match { color: #ce9178 !important; }
-                .nft-action { color: #d16969 !important; }
-                .nft-variable { color: #4ec9b0 !important; }
-                .nft-bracket { color: #d4d4d4 !important; }
-            }
-
-            /* 强制黑暗模式类适配 */
-            [data-theme="dark"] .nft-code-view, 
-            .dark .nft-code-view {
-                background: #1e1e1e !important;
-                color: #d4d4d4 !important;
-                border: 1px solid #333333 !important;
-            }
-            [data-theme="dark"] .nft-comment, .dark .nft-comment { color: #6a9955 !important; }
-            [data-theme="dark"] .nft-keyword, .dark .nft-keyword { color: #569cd6 !important; font-weight: bold !important; }
-            [data-theme="dark"] .nft-proto, .dark .nft-proto { color: #9cdcfe !important; }
-            [data-theme="dark"] .nft-match, .dark .nft-match { color: #ce9178 !important; }
-            [data-theme="dark"] .nft-action, .dark .nft-action { color: #d16969 !important; }
-            [data-theme="dark"] .nft-variable, .dark .nft-variable { color: #4ec9b0 !important; }
-            [data-theme="dark"] .nft-bracket, .dark .nft-bracket { color: #d4d4d4 !important; }
+            .nft-bracket { color: #333333 !important; }
         `);
         document.head.appendChild(style);
 

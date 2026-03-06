@@ -11,6 +11,11 @@ OUTPUT_FILE="/tmp/flowproxy_nft.conf"
 
 ENABLED_SETS=" "
 
+# 辅助函数：根据等级打印调试信息
+log_debug() {
+	[ "$FLOWPROXY_LOG_LEVEL" = "debug" ] && echo "DEBUG: $*" >&2
+}
+
 # 辅助函数
 get_config() {
     uci -q get "$CONFIG.$1.$2" || echo "$3"
@@ -22,8 +27,9 @@ gen_set_definition() {
 	local type enabled auto_gen file_path elems is_interval
 	
 	enabled=$(uci -q get "$CONFIG.$section.enabled")
-	[ "$enabled" = "0" ] && return
+	[ "$enabled" = "0" ] && { log_debug "Set $section is disabled, skipping"; return; }
 
+	log_debug "Generating set: $section"
 	ENABLED_SETS="${ENABLED_SETS}@${section} "
 	type=$(uci -q get "$CONFIG.$section.type")
 	[ -z "$type" ] && type="ipv4_addr"
@@ -111,9 +117,11 @@ process_rule() {
     local section="$1"; local proto="$2"
     local enabled match_type match_value action counter
     
-    enabled=$(uci -q get "$CONFIG.$section.enabled"); [ "$enabled" = "0" ] && return
+    enabled=$(uci -q get "$CONFIG.$section.enabled"); [ "$enabled" = "0" ] && { log_debug "Rule $section is disabled, skipping"; return; }
     match_type=$(uci -q get "$CONFIG.$section.match_type")
     match_value=$(uci -q get "$CONFIG.$section.match_value")
+    
+    log_debug "Processing $proto rule: $section ($match_type=$match_value)"
     action=$(uci -q get "$CONFIG.$section.action"); [ -z "$action" ] && action="return"
     counter=$(uci -q get "$CONFIG.$section.counter")
     [ -z "$match_value" ] && return
@@ -122,7 +130,10 @@ process_rule() {
         @*)
             local set_ref=$(echo "$match_value" | cut -d' ' -f1)
             if [ "$set_ref" != "@proxy_server_ip" ]; then
-                echo "$ENABLED_SETS" | grep -q " ${set_ref} " || return
+                if ! echo "$ENABLED_SETS" | grep -q " ${set_ref} "; then
+                    log_debug "Skipping rule $section: set ${set_ref} is not defined or disabled"
+                    return
+                fi
             fi
             ;;
     esac
