@@ -10,44 +10,53 @@ const IP_CACHE = '/tmp/flowproxy_lan_ip.cache';
 const LOG_FILE = '/var/log/flowproxy.log';
 const NFT_TABLE = 'flowproxy';
 
+function uci_get_config(section, option, default_val) {
+    try {
+        let uci_cursor = cursor();
+        let value = uci_cursor.get(UCI_CONFIG, section, option);
+        return value || default_val || '';
+    } catch (e) { return default_val || ''; }
+}
+
 const methods = {
     get_status: {
         call: function() {
-            // 1. 极致性能：如果标记文件存在，直接返回运行中，不进行任何 UCI/Ubus 操作
-            if (access(STATE_FILE, 'f')) {
-                let lan_ip = readfile(IP_CACHE) || '';
-                return { running: 1, enabled: 1, lan_ip: trim(lan_ip) };
-            }
+            // 极速探测
+            let is_running = access(STATE_FILE, 'f');
             
-            // 2. 只有没标记时才进行慢检测
-            let is_running = false;
-            if (system('nft list table inet ' + NFT_TABLE + ' >/dev/null 2>&1') === 0) {
-                is_running = true;
-                writefile(STATE_FILE, '');
+            // 自愈检测
+            if (!is_running) {
+                if (system('nft list table inet ' + NFT_TABLE + ' >/dev/null 2>&1') === 0) {
+                    is_running = true;
+                    try { writefile(STATE_FILE, ''); } catch(e) {}
+                }
             }
 
-            let uci_cursor = cursor();
-            let enabled = uci_cursor.get(UCI_CONFIG, 'global', 'enabled') || '0';
-            let proxy_ip = uci_cursor.get(UCI_CONFIG, 'global', 'proxy_ip') || '';
-            let lan_ip = '';
-
-            try {
-                let ubus_conn = connect();
-                if (ubus_conn) {
-                    let lan_status = ubus_conn.call('network.interface.lan', 'status');
-                    if (lan_status?.['ipv4-address']?.[0]) {
-                        lan_ip = lan_status['ipv4-address'][0].address;
-                        writefile(IP_CACHE, lan_ip); // 缓存 IP
+            // 获取 LAN IP (优先从缓存读取)
+            let lan_ip = readfile(IP_CACHE) || '';
+            if (!lan_ip) {
+                try {
+                    let ubus_conn = connect();
+                    if (ubus_conn) {
+                        let lan_status = ubus_conn.call('network.interface.lan', 'status');
+                        if (lan_status?.['ipv4-address']?.[0]) {
+                            lan_ip = lan_status['ipv4-address'][0].address;
+                            writefile(IP_CACHE, lan_ip);
+                        }
+                        ubus_conn.disconnect();
                     }
-                    ubus_conn.disconnect();
-                }
-            } catch (e) {}
+                } catch (e) {}
+            }
 
+            // 无论是否快速路径，都返回展示所需的配置信息
+            // 查询 UCI 配置非常快 (毫秒级)，不会拖慢速度
             return {
                 running: is_running ? 1 : 0,
-                enabled: int(enabled),
-                proxy_ip: proxy_ip,
-                lan_ip: lan_ip,
+                enabled: int(uci_get_config('global', 'enabled', '0')),
+                proxy_ip: uci_get_config('global', 'proxy_ip', ''),
+                lan_ip: trim(lan_ip),
+                interface: uci_get_config('global', 'interface', 'br-lan'),
+                tproxy_mark: uci_get_config('global', 'tproxy_mark', '100'),
                 nft: { tcp: is_running ? 1 : 0, udp: is_running ? 1 : 0 }
             };
         }
@@ -79,7 +88,6 @@ const methods = {
 
     generate_nft_config: {
         call: function() {
-            // 修正预览：强制指定 UCI 缓存目录并调用生成脚本
             system('UCI_CONFIG_DIR=/tmp/.uci /usr/share/flowproxy/generate_nft.sh > /tmp/flowproxy_nft.conf 2>&1');
             let content = readfile('/tmp/flowproxy_nft.conf') || '';
             return { config: trim(content) };
