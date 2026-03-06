@@ -123,7 +123,19 @@ return L.view.extend({
         o = s.option(form.Value, 'proxy_ip', _('Proxy IP Address'));
         o.datatype = 'ip4addr';
         o.rmempty = false;
-        o.description = _('The IP address of the proxy server (e.g., 192.168.1.100)');
+        
+        // 自动计算建议的 Proxy IP (当前 LAN IP + 1)
+        var suggestedIp = '';
+        if (status.lan_ip) {
+            var parts = status.lan_ip.split('.');
+            if (parts.length === 4) {
+                parts[3] = parseInt(parts[3]) + 1;
+                suggestedIp = parts.join('.');
+            }
+        }
+        o.default = suggestedIp || '192.168.1.100';
+        o.placeholder = suggestedIp;
+        o.description = _('The IP address of the proxy server (e.g., %s)').format(suggestedIp || '192.168.1.100');
 
         o = s.option(form.ListValue, 'interface', _('Network Interface'));
         interfaces.forEach(function(iface) {
