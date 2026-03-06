@@ -27,7 +27,7 @@ return L.view.extend({
     },
 
     highlightNft: function(text) {
-        if (!text) return '<span style="color: #999;">(no content)</span>';
+        if (!text || text.trim() === '') return '<span style="color: #999;">(no content / table not loaded)</span>';
         var rules = [
             { rex: /#(.*)/g, cls: 'comment' },
             { rex: /\b(table|chain|set|elements|type)\b/g, cls: 'keyword' },
@@ -90,6 +90,7 @@ return L.view.extend({
         s.tab('generated', _('generated config'));
         s.tab('runtime', _('live runtime state'));
 
+        // Tab 1: 生成的配置
         o = s.taboption('generated', form.SectionValue, '_gen_val', form.NamedSection, 'global', 'flowproxy');
         o.subsection.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
@@ -103,6 +104,7 @@ return L.view.extend({
             ]);
         }, this);
 
+        // Tab 2: 内核实时状态
         o = s.taboption('runtime', form.SectionValue, '_run_val', form.NamedSection, 'global', 'flowproxy');
         o.subsection.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
@@ -117,15 +119,23 @@ return L.view.extend({
         }, this);
 
         return m.render().then(L.bind(function(node) {
-            // 使用 setTimeout 确保 DOM 已经完全插入
-            setTimeout(L.bind(function() {
-                var genCodeEl = document.getElementById('gen-code');
-                if (genCodeEl) genCodeEl.innerHTML = this.highlightNft(genConfig);
-                
-                var runCodeEl = document.getElementById('run-code');
-                if (runCodeEl) runCodeEl.innerHTML = this.highlightNft(runConfig);
-            }, this), 100);
+            // 在页面完全加载及 Tab 可能切换后，确保内容注入
+            var self = this;
+            var updateContent = function() {
+                var genEl = document.getElementById('gen-code');
+                if (genEl) genEl.innerHTML = self.highlightNft(genConfig);
+                var runEl = document.getElementById('run-code');
+                if (runEl) runEl.innerHTML = self.highlightNft(runConfig);
+            };
+
+            // 初次注入
+            setTimeout(updateContent, 100);
             
+            // 额外针对 Tab 切换做监听，确保内容在 Tab 切换时依然存在（LuCI 的 Tab 有时会重绘）
+            node.addEventListener('cbi-tab-active', function() {
+                setTimeout(updateContent, 50);
+            });
+
             return node;
         }, this));
     }
