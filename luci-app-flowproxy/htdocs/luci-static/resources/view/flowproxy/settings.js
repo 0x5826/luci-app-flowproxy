@@ -60,37 +60,37 @@ return L.view.extend({
 
     render: function(data) {
         var status = data[1] || {};
-        var nftStatus = data[2] || {};
         var interfaces = (data[3] && Array.isArray(data[3].interfaces)) ? data[3].interfaces : [];
         var m, s, o;
 
-        m = new form.Map('flowproxy', _('FlowProxy'),
-            _('Traffic diversion based on nftables rules for routing specific traffic to proxy software.'));
+        m = new form.Map('flowproxy', _('flowproxy'),
+            _('traffic diversion based on nftables rules for routing specific traffic to proxy software.'));
 
         // 状态显示区域
-        s = m.section(form.NamedSection, '_status', 'flowproxy', _('Service Status'));
+        s = m.section(form.NamedSection, '_status', 'flowproxy', _('service status'));
         s.render = L.bind(function() {
-            var statusHtml = E('div', { 'class': 'cbi-section-node' }, [
+            return E('div', { 'class': 'cbi-section-node' }, [
                 E('div', { 'class': 'table' }, [
                     E('div', { 'class': 'tr' }, [
-                        E('div', { 'class': 'td left', 'style': 'width: 30%' }, _('Service Status')),
-                        E('div', { 'class': 'td left', 'id': 'service-status' }, _('Loading...'))
+                        E('div', { 'class': 'td left', 'style': 'width: 30%' }, _('service status')),
+                        E('div', { 'class': 'td left', 'id': 'service-status' }, _('loading...'))
                     ]),
-                    E('div', { 'class': 'tr' }, [
-                        E('div', { 'class': 'td left' }, _('nftables Status')),
-                        E('div', { 'class': 'td left', 'id': 'nft-status' }, _('Loading...'))
+                    // 动态详情行：默认隐藏
+                    E('div', { 'class': 'tr', 'id': 'nft-status-row', 'style': 'display: none;' }, [
+                        E('div', { 'class': 'td left' }, _('nftables status')),
+                        E('div', { 'class': 'td left', 'id': 'nft-status' }, '-')
                     ]),
-                    E('div', { 'class': 'tr' }, [
-                        E('div', { 'class': 'td left' }, _('Proxy IP')),
-                        E('div', { 'class': 'td left', 'id': 'proxy-ip' }, status.proxy_ip || '-')
+                    E('div', { 'class': 'tr', 'id': 'proxy-ip-row', 'style': 'display: none;' }, [
+                        E('div', { 'class': 'td left' }, _('active proxy ip')),
+                        E('div', { 'class': 'td left', 'id': 'proxy-ip' }, '-')
                     ]),
-                    E('div', { 'class': 'tr' }, [
-                        E('div', { 'class': 'td left' }, _('Interface')),
-                        E('div', { 'class': 'td left', 'id': 'interface' }, status.interface || '-')
+                    E('div', { 'class': 'tr', 'id': 'interface-row', 'style': 'display: none;' }, [
+                        E('div', { 'class': 'td left' }, _('active interface')),
+                        E('div', { 'class': 'td left', 'id': 'interface' }, '-')
                     ]),
-                    E('div', { 'class': 'tr' }, [
-                        E('div', { 'class': 'td left' }, _('Mark Value')),
-                        E('div', { 'class': 'td left', 'id': 'tproxy-mark' }, status.tproxy_mark || '-')
+                    E('div', { 'class': 'tr', 'id': 'tproxy-mark-row', 'style': 'display: none;' }, [
+                        E('div', { 'class': 'td left' }, _('active mark')),
+                        E('div', { 'class': 'td left', 'id': 'tproxy-mark' }, '-')
                     ])
                 ]),
                 E('div', { 'class': 'cbi-page-actions', 'style': 'margin-top: 10px' }, [
@@ -98,33 +98,30 @@ return L.view.extend({
                         'class': 'cbi-button cbi-button-apply',
                         'click': L.bind(this.handleStart, this),
                         'id': 'btn-start'
-                    }, _('Start')),
+                    }, _('start')),
                     E('button', {
                         'class': 'cbi-button cbi-button-reset',
                         'click': L.bind(this.handleStop, this),
                         'id': 'btn-stop'
-                    }, _('Stop')),
+                    }, _('stop')),
                     E('button', {
                         'class': 'cbi-button cbi-button-reload',
                         'click': L.bind(this.handleRestart, this)
-                    }, _('Restart'))
+                    }, _('restart'))
                 ])
             ]);
-            return statusHtml;
         }, this);
 
         // 基本设置
-        s = m.section(form.NamedSection, 'global', 'flowproxy', _('Basic Settings'));
+        s = m.section(form.NamedSection, 'global', 'flowproxy', _('basic settings'));
 
-        o = s.option(form.Flag, 'enabled', _('Enable'));
+        o = s.option(form.Flag, 'enabled', _('enabled'));
         o.rmempty = false;
         o.default = '0';
 
-        o = s.option(form.Value, 'proxy_ip', _('Proxy IP Address'));
+        o = s.option(form.Value, 'proxy_ip', _('proxy ip address'));
         o.datatype = 'ip4addr';
         o.rmempty = false;
-        
-        // 自动计算建议的 Proxy IP (当前 LAN IP + 1)
         var suggestedIp = '';
         if (status.lan_ip) {
             var parts = status.lan_ip.split('.');
@@ -135,68 +132,51 @@ return L.view.extend({
         }
         o.default = suggestedIp || '192.168.1.100';
         o.placeholder = suggestedIp;
-        o.description = _('The IP address of the proxy server (e.g., %s)').format(suggestedIp || '192.168.1.100');
 
-        o = s.option(form.ListValue, 'interface', _('Network Interface'));
+        o = s.option(form.ListValue, 'interface', _('network interface'));
         interfaces.forEach(function(iface) {
             o.value(iface.name, iface.name + (iface.mac ? ' (' + iface.mac + ')' : ''));
         });
         o.default = 'br-lan';
-        o.description = _('Network interface for routing traffic');
 
-        o = s.option(form.Value, 'tproxy_mark', _('TPROXY Mark'));
+        o = s.option(form.Value, 'tproxy_mark', _('tproxy mark'));
         o.datatype = 'uinteger';
         o.default = '100';
-        o.description = _('Firewall mark value for transparent proxy (default: 100)');
 
         // 日志设置
-        s = m.section(form.NamedSection, 'global', 'flowproxy', _('Log Settings'));
-
-        o = s.option(form.ListValue, 'log_level', _('Log Level'));
-        o.value('debug', _('Debug'));
-        o.value('info', _('Info'));
-        o.value('warn', _('Warning'));
-        o.value('error', _('Error'));
+        s = m.section(form.NamedSection, 'global', 'flowproxy', _('log settings'));
+        o = s.option(form.ListValue, 'log_level', _('log level'));
+        o.value('debug', 'debug'); o.value('info', 'info'); o.value('warn', 'warn'); o.value('error', 'error');
         o.default = 'info';
 
-        o = s.option(form.Value, 'log_size', _('Log Size (KB)'));
+        o = s.option(form.Value, 'log_size', _('log size (kb)'));
         o.datatype = 'uinteger';
         o.default = '1024';
-        o.description = _('Maximum log file size in kilobytes');
 
-        o = s.option(form.Value, 'log_count', _('Log Count'));
+        o = s.option(form.Value, 'log_count', _('log count'));
         o.datatype = 'uinteger';
         o.default = '3';
-        o.description = _('Number of rotated log files to keep');
 
         // 日志查看
-        s = m.section(form.NamedSection, '_logs', 'flowproxy', _('Runtime Logs'));
+        s = m.section(form.NamedSection, '_logs', 'flowproxy', _('runtime logs'));
         s.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
                 E('div', { 'class': 'cbi-page-actions', 'style': 'margin-bottom: 10px' }, [
-                    E('button', {
-                        'class': 'cbi-button cbi-button-refresh',
-                        'click': L.bind(this.refreshLogs, this)
-                    }, _('Refresh')),
-                    E('button', {
-                        'class': 'cbi-button cbi-button-reset',
-                        'click': L.bind(this.clearLogs, this)
-                    }, _('Clear Logs'))
+                    E('button', { 'class': 'cbi-button cbi-button-refresh', 'click': L.bind(this.refreshLogs, this) }, _('refresh')),
+                    E('button', { 'class': 'cbi-button cbi-button-reset', 'click': L.bind(this.clearLogs, this) }, _('clear logs'))
                 ]),
                 E('textarea', {
                     'id': 'log-content',
                     'style': 'width: 100%; height: 400px; font-family: monospace; font-size: 12px; resize: vertical;',
                     'readonly': true,
-                    'placeholder': _('No logs available')
-                }, _('Loading logs...'))
+                    'placeholder': _('no logs available')
+                }, _('loading logs...'))
             ]);
         }, this);
 
-        // 启动轮询更新状态
         this.pollStatus();
 
         return m.render().then(L.bind(function(node) {
-            // 初始加载日志
             this.refreshLogs();
             return node;
         }, this));
@@ -210,34 +190,40 @@ return L.view.extend({
             ]).then(L.bind(function(data) {
                 var status = data[0] || {};
                 var nftStatus = data[1] || {};
+                var isRunning = (status.enabled == 1 && status.running == 1);
 
-                // 更新服务状态
                 var statusEl = document.getElementById('service-status');
                 if (statusEl) {
-                    if (status.enabled == 1 && status.running == 1) {
-                        statusEl.innerHTML = '<span style="color: green; font-weight: bold;">● ' + _('Running') + '</span>';
-                    } else if (status.enabled == 1) {
-                        statusEl.innerHTML = '<span style="color: orange; font-weight: bold;">● ' + _('Enabled (Not Running)') + '</span>';
+                    if (isRunning) {
+                        statusEl.innerHTML = '<span style="color: green; font-weight: bold;">● ' + _('running') + '</span>';
                     } else {
-                        statusEl.innerHTML = '<span style="color: red; font-weight: bold;">● ' + _('Disabled') + '</span>';
+                        statusEl.innerHTML = (status.enabled == 1) ? 
+                            '<span style="color: orange; font-weight: bold;">● ' + _('enabled (stopped)') + '</span>' : 
+                            '<span style="color: red; font-weight: bold;">● ' + _('disabled') + '</span>';
                     }
                 }
 
-                // 更新 nftables 状态
-                var nftEl = document.getElementById('nft-status');
-                if (nftEl) {
+                // 核心逻辑：仅在运行时显示详细状态
+                var detailRows = ['nft-status-row', 'proxy-ip-row', 'interface-row', 'tproxy-mark-row'];
+                detailRows.forEach(function(id) {
+                    var el = document.getElementById(id);
+                    if (el) el.style.display = isRunning ? '' : 'none';
+                });
+
+                if (isRunning) {
+                    document.getElementById('proxy-ip').innerText = status.proxy_ip || '-';
+                    document.getElementById('interface').innerText = status.interface || '-';
+                    document.getElementById('tproxy-mark').innerText = status.tproxy_mark || '-';
+                    
+                    var nftEl = document.getElementById('nft-status');
                     var chains = [];
                     if (nftStatus.tcp_chain) chains.push('TCP');
                     if (nftStatus.udp_chain) chains.push('UDP');
-                    if (chains.length > 0) {
-                        nftEl.innerHTML = '<span style="color: green;">' + _('Active chains: %s').format(chains.join(', ')) + '</span>';
-                    } else {
-                        nftEl.innerHTML = '<span style="color: gray;">' + _('No active chains') + '</span>';
-                    }
+                    nftEl.innerHTML = chains.length > 0 ? 
+                        '<span style="color: green;">' + _('active: %s').format(chains.join(', ')) + '</span>' : 
+                        '<span style="color: gray;">' + _('no active chains') + '</span>';
                 }
-            }, this)).catch(function(err) {
-                console.error('Failed to poll status:', err);
-            });
+            }, this));
         }, this), 5);
     },
 
@@ -246,39 +232,19 @@ return L.view.extend({
             var logEl = document.getElementById('log-content');
             var logs = (data && Array.isArray(data.logs)) ? data.logs : [];
             if (logEl) {
-                if (logs.length > 0) {
-                    logEl.value = logs.join('\n');
-                    logEl.scrollTop = logEl.scrollHeight;
-                } else {
-                    logEl.value = _('No logs available');
-                }
+                logEl.value = logs.length > 0 ? logs.join('\n') : _('no logs available');
+                if (logs.length > 0) logEl.scrollTop = logEl.scrollHeight;
             }
         }, this));
     },
 
     clearLogs: function() {
-        if (confirm(_('Are you sure you want to clear all logs?'))) {
-            callClearLogs().then(L.bind(function() {
-                this.refreshLogs();
-            }, this));
+        if (confirm(_('clear all logs?'))) {
+            callClearLogs().then(L.bind(this.refreshLogs, this));
         }
     },
 
-    handleStart: function(ev) {
-        return callStartService().then(L.bind(function() {
-            return this.refreshLogs();
-        }, this));
-    },
-
-    handleStop: function(ev) {
-        return callStopService().then(L.bind(function() {
-            return this.refreshLogs();
-        }, this));
-    },
-
-    handleRestart: function(ev) {
-        return callRestartService().then(L.bind(function() {
-            return this.refreshLogs();
-        }, this));
-    }
+    handleStart: function() { return callStartService().then(L.bind(this.refreshLogs, this)); },
+    handleStop: function() { return callStopService().then(L.bind(this.refreshLogs, this)); },
+    handleRestart: function() { return callRestartService().then(L.bind(this.refreshLogs, this)); }
 });
