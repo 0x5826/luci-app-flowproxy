@@ -37,8 +37,12 @@ return L.view.extend({
             ]);
             Object.keys(presets).forEach(function(k) {
                 var p = presets[k];
-                // 如果是 UDP 列表，跳过 ports 模版（因为默认是针对 TCP）
-                if (type === 'udp_rule' && k === 'ports') return;
+                var match_val = p.val;
+
+                // 针对不同协议自动切换端口集合引用
+                if (k === 'ports') {
+                    match_val = (type === 'tcp_rule') ? '@no_proxy_dst_tcp_ports' : '@no_proxy_dst_udp_ports';
+                }
 
                 btnGroup.appendChild(E('button', {
                     'class': 'cbi-button cbi-button-apply',
@@ -48,7 +52,7 @@ return L.view.extend({
                         uci.set('flowproxy', sid, 'name', 'skip ' + p.name);
                         uci.set('flowproxy', sid, 'enabled', '1');
                         uci.set('flowproxy', sid, 'match_type', p.type);
-                        uci.set('flowproxy', sid, 'match_value', p.val);
+                        uci.set('flowproxy', sid, 'match_value', match_val);
                         uci.set('flowproxy', sid, 'action', 'return');
                         uci.set('flowproxy', sid, 'counter', '0');
                         return uci.save().then(function() { location.reload(); });
@@ -126,7 +130,14 @@ return L.view.extend({
                                 { n: 'skip private (dst)', t: 'dst_ip', v: '@private_dst_ip_v4' },
                                 { n: 'skip china (dst)', t: 'dst_ip', v: '@chnroute_dst_ip_v4' }
                             ];
-                            if (type === 'tcp_rule') defs.push({ n: 'skip ports (dst)', t: 'dst_port', v: '@no_proxy_dst_tcp_ports' });
+
+                            // 添加端口绕过规则
+                            if (type === 'tcp_rule') {
+                                defs.push({ n: 'skip ports (dst)', t: 'dst_port', v: '@no_proxy_dst_tcp_ports' });
+                            } else if (type === 'udp_rule') {
+                                defs.push({ n: 'skip ports (dst)', t: 'dst_port', v: '@no_proxy_dst_udp_ports' });
+                            }
+
                             defs.forEach(function(r) {
                                 var sid = uci.add('flowproxy', type);
                                 uci.set('flowproxy', sid, 'name', r.n);

@@ -83,6 +83,14 @@ config udp_rule
 	option action 'return'
 	option counter '0'
 
+config udp_rule
+	option name 'skip ports (dst)'
+	option enabled '1'
+	option match_type 'dst_port'
+	option match_value '@no_proxy_dst_udp_ports'
+	option action 'return'
+	option counter '0'
+
 # nftables set 配置
 config nftset 'no_proxy_src_mac'
 	option enabled '1'
