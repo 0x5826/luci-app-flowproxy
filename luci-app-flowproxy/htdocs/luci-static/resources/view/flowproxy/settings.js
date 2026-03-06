@@ -31,19 +31,17 @@ return L.view.extend({
         s = m.section(form.NamedSection, '_status', 'flowproxy', _('service status'));
         s.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'class': 'table' }, [
-                    E('div', { 'class': 'tr' }, [
-                        E('div', { 'class': 'td left', 'style': 'width: 30%; font-weight: bold;' }, _('current status')),
-                        E('div', { 'class': 'td left', 'id': 'service-status' }, E('em', { 'class': 'spinning' }, _('checking...')))
-                    ]),
-                    E('div', { 'class': 'tr', 'id': 'nft-status-row', 'style': 'display: none;' }, [
-                        E('div', { 'class': 'td left' }, _('active protocols')),
-                        E('div', { 'class': 'td left', 'id': 'nft-status' }, '-')
-                    ]),
-                    E('div', { 'class': 'tr', 'id': 'proxy-ip-row', 'style': 'display: none;' }, [
-                        E('div', { 'class': 'td left' }, _('active proxy ip')),
-                        E('div', { 'class': 'td left', 'id': 'proxy-ip' }, '-')
-                    ])
+                E('div', { 'class': 'cbi-value' }, [
+                    E('label', { 'class': 'cbi-value-title', 'style': 'font-weight: bold;' }, _('current status')),
+                    E('div', { 'class': 'cbi-value-field', 'id': 'service-status', 'style': 'padding-top: .5rem;' }, E('em', { 'class': 'spinning' }, _('checking...')))
+                ]),
+                E('div', { 'class': 'cbi-value', 'id': 'nft-status-row', 'style': 'display: none;' }, [
+                    E('label', { 'class': 'cbi-value-title' }, _('active protocols')),
+                    E('div', { 'class': 'cbi-value-field', 'id': 'nft-status', 'style': 'padding-top: .5rem;' }, '-')
+                ]),
+                E('div', { 'class': 'cbi-value', 'id': 'proxy-ip-row', 'style': 'display: none;' }, [
+                    E('label', { 'class': 'cbi-value-title' }, _('active proxy ip')),
+                    E('div', { 'class': 'cbi-value-field', 'id': 'proxy-ip', 'style': 'padding-top: .5rem;' }, '-')
                 ])
             ]);
         }, this);
