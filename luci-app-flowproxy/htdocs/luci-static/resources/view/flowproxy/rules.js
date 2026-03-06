@@ -50,9 +50,9 @@ return L.view.extend({
             uci.set('flowproxy', section_id, 'use_chnroute_dst_ip', defaultConfig.use_chnroute_dst_ip);
             uci.set('flowproxy', section_id, 'use_no_proxy_ports', defaultConfig.use_no_proxy_ports);
 
-            return this.map.save().then(function() {
-                window.location.reload();
-            });
+            return this.map.save(null, true).then(L.bind(function() {
+                return this.map.render();
+            }, this));
         };
 
         o = s.option(form.Value, 'name', _('Rule Name'));
@@ -110,9 +110,9 @@ return L.view.extend({
             uci.set('flowproxy', section_id, 'use_chnroute_dst_ip', defaultConfig.use_chnroute_dst_ip);
             uci.set('flowproxy', section_id, 'use_no_proxy_ports', defaultConfig.use_no_proxy_ports);
 
-            return this.map.save().then(function() {
-                window.location.reload();
-            });
+            return this.map.save(null, true).then(L.bind(function() {
+                return this.map.render();
+            }, this));
         };
 
         o = s.option(form.Value, 'name', _('Rule Name'));
