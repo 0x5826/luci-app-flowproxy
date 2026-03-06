@@ -7,6 +7,9 @@ msgstr ""
 msgid "FlowProxy"
 msgstr "代理分流"
 
+msgid "flowproxy"
+msgstr "代理分流"
+
 msgid "traffic diversion based on nftables rules. the service will automatically start/stop when you click \"save & apply\"."
 msgstr "基于 nftables 规则的流量分流。点击“保存并应用”后，服务将自动启动/停止。"
 
@@ -22,7 +25,7 @@ msgstr "配置并查看服务运行日志。"
 msgid "view the generated configuration and live kernel state."
 msgstr "查看生成的配置及内核实时运行状态。"
 
-msgid "inspection tabs"
+msgid "Settings"
 msgstr "设置"
 
 msgid "Rules"
