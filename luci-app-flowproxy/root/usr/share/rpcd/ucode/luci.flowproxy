@@ -25,9 +25,17 @@ const methods = {
             let enabled = uci_get_config('global', 'enabled', '0');
             let lan_ip = '';
             
-            // 极速检测：检查标记文件是否存在
-            // 这种方式不需要 fork 任何进程，仅需 1 个系统调用
+            // 1. 尝试快速路径
             let is_running = access(STATE_FILE, 'f'); 
+            
+            // 2. 自愈逻辑：如果标记文件丢失但内核中有规则，则自动补全
+            if (!is_running) {
+                if (system('nft list table inet ' + NFT_TABLE + ' >/dev/null 2>&1') === 0) {
+                    is_running = true;
+                    // 创建标记文件，确保下次 poll 进入快速路径
+                    try { writefile(STATE_FILE, ''); } catch(e) {}
+                }
+            }
             
             try {
                 let ubus_conn = connect();
