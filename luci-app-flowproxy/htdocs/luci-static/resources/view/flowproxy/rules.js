@@ -46,7 +46,7 @@ return L.view.extend({
 
                 btnGroup.appendChild(E('button', {
                     'class': 'cbi-button cbi-button-apply',
-                    'style': 'padding: 1px 6px; font-size: 0.85em; opacity: 0.9;',
+                    'style': 'padding: 0 6px; font-size: 0.75rem; height: 22px; line-height: 22px; opacity: 0.8; margin-bottom: 4px;',
                     'click': ui.createHandlerFn(this, function() {
                         var sid = uci.add('flowproxy', type);
                         uci.set('flowproxy', sid, 'name', 'skip ' + p.name);
