@@ -68,8 +68,8 @@ msgstr "已禁用"
 msgid "checking..."
 msgstr "检测中..."
 
-msgid "nftables chains"
-msgstr "nftables 规则链"
+msgid "active rules"
+msgstr "生效规则"
 
 msgid "active proxy ip"
 msgstr "活动代理 IP"

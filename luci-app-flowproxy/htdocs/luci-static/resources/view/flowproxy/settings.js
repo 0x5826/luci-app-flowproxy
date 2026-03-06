@@ -37,7 +37,7 @@ return L.view.extend({
                         E('div', { 'class': 'td left', 'id': 'service-status' }, E('em', { 'class': 'spinning' }, _('checking...')))
                     ]),
                     E('div', { 'class': 'tr', 'id': 'nft-status-row', 'style': 'display: none;' }, [
-                        E('div', { 'class': 'td left' }, _('nftables chains')),
+                        E('div', { 'class': 'td left' }, _('active rules')),
                         E('div', { 'class': 'td left', 'id': 'nft-status' }, '-')
                     ]),
                     E('div', { 'class': 'tr', 'id': 'proxy-ip-row', 'style': 'display: none;' }, [
