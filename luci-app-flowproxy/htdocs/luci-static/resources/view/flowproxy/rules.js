@@ -60,8 +60,9 @@ return L.view.extend({
             return container;
         }, this);
 
-        // 2. 总开关承载（隐藏渲染，仅用于后端数据绑定）
+        // 2. 隐藏的数据绑定段 (重写 render 确保它不在页面上显示)
         var master_s = m.section(form.NamedSection, 'global', 'flowproxy');
+        master_s.render = function() { return E('div', { 'style': 'display:none' }); };
         master_s.option(form.Flag, 'tcp_enabled', _('TCP diversion master switch'));
         master_s.option(form.Flag, 'udp_enabled', _('UDP diversion master switch'));
 
