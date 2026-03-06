@@ -5,10 +5,22 @@ msgstr ""
 "Language: zh_Hans\n"
 
 msgid "FlowProxy"
-msgstr "流量分流"
+msgstr "FlowProxy"
 
-msgid "Traffic diversion based on nftables rules for routing specific traffic to proxy software."
-msgstr "基于 nftables 规则的流量分流，将特定流量路由到代理软件。"
+msgid "traffic diversion based on nftables rules. the service will automatically start/stop when you click \"save & apply\"."
+msgstr "基于 nftables 规则的流量分流。点击“保存并应用”后，服务将自动启动/停止。"
+
+msgid "define nftables rules. choose match type and provide value (IP, MAC, or @set)."
+msgstr "定义 nftables 规则。选择匹配类型并提供匹配值（IP、MAC 或 @名单引用）。"
+
+msgid "manage nftables set collections. use \"save & apply\" on each section to take effect immediately."
+msgstr "管理 nftables set 集合。使用各区块的“保存并应用”按钮可立即生效。"
+
+msgid "configure and view service runtime logs."
+msgstr "配置并查看服务运行日志。"
+
+msgid "view the generated configuration and live kernel state with syntax highlighting."
+msgstr "查看生成的配置及内核实时运行状态（支持语法高亮）。"
 
 msgid "Settings"
 msgstr "设置"
@@ -22,365 +34,209 @@ msgstr "名单"
 msgid "Preview"
 msgstr "预览"
 
-msgid "Service Status"
+msgid "Logs"
+msgstr "日志"
+
+# Status
+msgid "service status"
 msgstr "服务状态"
 
-msgid "nftables Status"
-msgstr "nftables 状态"
-
-msgid "Proxy IP"
-msgstr "代理 IP"
-
-msgid "Proxy IP Address"
-msgstr "代理 IP 地址"
-
-msgid "The IP address of the proxy server (e.g., 192.168.1.100)"
-msgstr "代理服务器的 IP 地址（例如：192.168.1.100）"
-
-msgid "Interface"
-msgstr "接口"
-
-msgid "Network Interface"
-msgstr "网络接口"
-
-msgid "Network interface for routing traffic"
-msgstr "用于路由流量的网络接口"
-
-msgid "Mark Value"
-msgstr "标记值"
-
-msgid "TPROXY Mark"
-msgstr "TPROXY 标记"
-
-msgid "Firewall mark value for transparent proxy (default: 100)"
-msgstr "透明代理的防火墙标记值（默认：100）"
-
-msgid "Enable"
-msgstr "启用"
-
-msgid "Running"
-msgstr "运行中"
-
-msgid "Enabled (Not Running)"
-msgstr "已启用（未运行）"
-
-msgid "Disabled"
-msgstr "已禁用"
-
-msgid "Active chains: %s"
-msgstr "活动链：%s"
-
-msgid "No active chains"
-msgstr "无活动链"
-
-msgid "Log Settings"
-msgstr "日志设置"
-
-msgid "Log Level"
-msgstr "日志级别"
-
-msgid "Debug"
-msgstr "调试"
-
-msgid "Info"
-msgstr "信息"
-
-msgid "Warning"
-msgstr "警告"
-
-msgid "Error"
-msgstr "错误"
-
-msgid "Log Size (KB)"
-msgstr "日志大小 (KB)"
-
-msgid "Maximum log file size in kilobytes"
-msgstr "日志文件最大大小（KB）"
-
-msgid "Log Count"
-msgstr "日志数量"
-
-msgid "Number of rotated log files to keep"
-msgstr "保留的轮转日志文件数量"
-
-msgid "Runtime Logs"
-msgstr "运行日志"
-
-msgid "Refresh"
-msgstr "刷新"
-
-msgid "Clear Logs"
-msgstr "清除日志"
-
-msgid "No logs available"
-msgstr "暂无日志"
-
-msgid "Are you sure you want to clear all logs?"
-msgstr "确定要清除所有日志吗？"
-
-msgid "Start"
-msgstr "启动"
-
-msgid "Stop"
-msgstr "停止"
-
-msgid "Restart"
-msgstr "重启"
-
-msgid "Basic Settings"
-msgstr "基本设置"
-
-msgid "FlowProxy - Rules Management"
-msgstr "FlowProxy - 规则管理"
-
-msgid "Manage TCP and UDP traffic rules. All rules can be freely added, edited, or deleted."
-msgstr "管理 TCP 和 UDP 流量规则。所有规则都可以自由添加、编辑或删除。"
-
-msgid "TCP Rules"
-msgstr "TCP 规则"
-
-msgid "UDP Rules"
-msgstr "UDP 规则"
-
-msgid "Add TCP Rule"
-msgstr "添加 TCP 规则"
-
-msgid "Add UDP Rule"
-msgstr "添加 UDP 规则"
-
-msgid "New TCP Rule"
-msgstr "新 TCP 规则"
-
-msgid "New UDP Rule"
-msgstr "新 UDP 规则"
-
-msgid "Rule Name"
-msgstr "规则名称"
-
-msgid "Enter rule name"
-msgstr "输入规则名称"
-
-msgid "Priority"
-msgstr "优先级"
-
-msgid "Lower value = higher priority"
-msgstr "数值越小优先级越高"
-
-msgid "Skip Source MAC"
-msgstr "跳过源 MAC"
-
-msgid "Skip Source IP"
-msgstr "跳过源 IP"
-
-msgid "Skip Destination IP"
-msgstr "跳过目标 IP"
-
-msgid "Skip Private IP"
-msgstr "跳过私有 IP"
-
-msgid "Skip China IP"
-msgstr "跳过中国 IP"
-
-msgid "Skip Ports"
-msgstr "跳过端口"
-
-msgid "Rule Processing"
-msgstr "规则处理"
-
-msgid "Rules are processed in order. Traffic matching any skip condition will bypass proxy."
-msgstr "规则按顺序处理。匹配任何跳过条件的流量将绕过代理。"
-
-msgid "Check destination type (local/anycast/multicast) → skip"
-msgstr "检查目标类型（本地/任播/组播）→ 跳过"
-
-msgid "Check source MAC in list → skip"
-msgstr "检查源 MAC 是否在名单中 → 跳过"
-
-msgid "Check source IP is proxy server → skip"
-msgstr "检查源 IP 是否为代理服务器 → 跳过"
-
-msgid "Check source IP in list → skip"
-msgstr "检查源 IP 是否在名单中 → 跳过"
-
-msgid "Check destination IP in list → skip"
-msgstr "检查目标 IP 是否在名单中 → 跳过"
-
-msgid "Check destination IP is private → skip"
-msgstr "检查目标 IP 是否为私有地址 → 跳过"
-
-msgid "Check destination IP is China IP → skip"
-msgstr "检查目标 IP 是否为中国 IP → 跳过"
-
-msgid "Check destination port in list → skip"
-msgstr "检查目标端口是否在名单中 → 跳过"
-
-msgid "Mark traffic for proxy"
-msgstr "标记流量走代理"
-
-msgid "FlowProxy - Lists Management"
-msgstr "FlowProxy - 名单管理"
-
-msgid "Manage nftables set collections used by traffic rules."
-msgstr "管理流量规则使用的 nftables set 集合。"
-
-msgid "No Proxy Source MAC"
-msgstr "不走代理的源 MAC"
-
-msgid "Configuration"
-msgstr "配置"
-
-msgid "Elements"
-msgstr "元素"
-
-msgid "Description"
-msgstr "描述"
-
-msgid "MAC Addresses"
-msgstr "MAC 地址"
-
-msgid "Enter MAC addresses (e.g., aa:bb:cc:dd:ee:ff)"
-msgstr "输入 MAC 地址（例如：aa:bb:cc:dd:ee:ff）"
-
-msgid "No Proxy Source IPv4"
-msgstr "不走代理的源 IPv4"
-
-msgid "IPv4 Addresses"
-msgstr "IPv4 地址"
-
-msgid "Enter IPv4 addresses or CIDR (e.g., 192.168.1.100 or 192.168.1.0/24)"
-msgstr "输入 IPv4 地址或 CIDR（例如：192.168.1.100 或 192.168.1.0/24）"
-
-msgid "No Proxy Destination IPv4"
-msgstr "不走代理的目标 IPv4"
-
-msgid "Enter IPv4 addresses or CIDR (e.g., 8.8.8.8 or 10.0.0.0/8)"
-msgstr "输入 IPv4 地址或 CIDR（例如：8.8.8.8 或 10.0.0.0/8）"
-
-msgid "Private IP Ranges"
-msgstr "私有 IP 地址段"
-
-msgid "Auto Generate"
-msgstr "自动生成"
-
-msgid "Automatically generate private IP ranges (RFC 1918)"
-msgstr "自动生成私有 IP 地址段（RFC 1918）"
-
-msgid "IPv4 Ranges"
-msgstr "IPv4 地址段"
-
-msgid "Private IP ranges (auto-generated if enabled)"
-msgstr "私有 IP 地址段（启用时自动生成）"
-
-msgid "China IP Ranges"
-msgstr "中国 IP 地址段"
-
-msgid "IP List File"
-msgstr "IP 列表文件"
-
-msgid "Path to file containing China IP ranges (one CIDR per line)"
-msgstr "包含中国 IP 地址段的文件路径（每行一个 CIDR）"
-
-msgid "China IP ranges (loaded from file)"
-msgstr "中国 IP 地址段（从文件加载）"
-
-msgid "No Proxy TCP Ports"
-msgstr "不走代理的 TCP 端口"
-
-msgid "TCP Ports"
-msgstr "TCP 端口"
-
-msgid "Enter port numbers or ranges (e.g., 80, 443, 8080-8090)"
-msgstr "输入端口号或范围（例如：80, 443, 8080-8090）"
-
-msgid "No Proxy UDP Ports"
-msgstr "不走代理的 UDP 端口"
-
-msgid "UDP Ports"
-msgstr "UDP 端口"
-
-msgid "Enter port numbers or ranges (e.g., 53, 123, 5000-5010)"
-msgstr "输入端口号或范围（例如：53, 123, 5000-5010）"
-
-msgid "Quick Reference"
-msgstr "快速参考"
-
-msgid "List Name"
-msgstr "名单名称"
-
-msgid "Usage"
-msgstr "用途"
-
-msgid "Source MAC addresses that bypass proxy"
-msgstr "绕过代理的源 MAC 地址"
-
-msgid "Source IPv4 addresses that bypass proxy"
-msgstr "绕过代理的源 IPv4 地址"
-
-msgid "Destination IPv4 addresses that bypass proxy"
-msgstr "绕过代理的目标 IPv4 地址"
-
-msgid "Private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)"
-msgstr "私有 IP 地址段（10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16）"
-
-msgid "China IP ranges loaded from file"
-msgstr "从文件加载的中国 IP 地址段"
-
-msgid "TCP ports that bypass proxy"
-msgstr "绕过代理的 TCP 端口"
-
-msgid "UDP ports that bypass proxy"
-msgstr "绕过代理的 UDP 端口"
-
-msgid "FlowProxy - Configuration Preview"
-msgstr "FlowProxy - 配置预览"
-
-msgid "Preview the generated nftables configuration before applying."
-msgstr "在应用前预览生成的 nftables 配置。"
-
-msgid "Current Status"
+msgid "current status"
 msgstr "当前状态"
 
-msgid "Service Enabled"
-msgstr "服务已启用"
+msgid "running"
+msgstr "运行中"
 
-msgid "Yes"
-msgstr "是"
+msgid "stopped"
+msgstr "已停止"
 
-msgid "No"
-msgstr "否"
+msgid "disabled"
+msgstr "已禁用"
 
-msgid "nftables Configuration"
-msgstr "nftables 配置"
+msgid "nftables chains"
+msgstr "nftables 规则链"
 
-msgid "Refresh Preview"
-msgstr "刷新预览"
+msgid "active proxy ip"
+msgstr "活动代理 IP"
 
-msgid "Copy to Clipboard"
-msgstr "复制到剪贴板"
+msgid "active mark"
+msgstr "活动标记"
 
-msgid "Configuration copied to clipboard"
-msgstr "配置已复制到剪贴板"
+msgid "active interface"
+msgstr "活动接口"
 
-msgid "Route Rules Preview"
-msgstr "路由规则预览"
+# Basic Settings
+msgid "basic settings"
+msgstr "基础设置"
 
-msgid "(not configured)"
-msgstr "（未配置）"
+msgid "enable flowproxy"
+msgstr "启用 FlowProxy"
 
-msgid "Command Reference"
-msgstr "命令参考"
+msgid "proxy ip address"
+msgstr "代理服务器 IP 地址"
 
-msgid "Service Control"
-msgstr "服务控制"
+msgid "network interface"
+msgstr "网络接口"
 
-msgid "View nftables Rules"
-msgstr "查看 nftables 规则"
+msgid "tproxy mark"
+msgstr "TPROXY 标记值"
 
-msgid "View Sets"
-msgstr "查看集合"
+# Log Settings
+msgid "log settings"
+msgstr "日志设置"
 
-msgid "Loading..."
+msgid "log level"
+msgstr "日志级别"
+
+msgid "log size (kb)"
+msgstr "日志文件大小 (KB)"
+
+msgid "log count"
+msgstr "日志保留数量"
+
+msgid "runtime logs"
+msgstr "运行日志"
+
+msgid "refresh logs"
+msgstr "刷新日志"
+
+msgid "clear logs"
+msgstr "清空日志"
+
+msgid "no logs available"
+msgstr "暂无日志内容"
+
+# Rules Page
+msgid "flowproxy - rules"
+msgstr "FlowProxy - 规则管理"
+
+msgid "quick templates"
+msgstr "快捷模版"
+
+msgid "rule templates"
+msgstr "规则模版"
+
+msgid "matching rules"
+msgstr "匹配规则列表"
+
+msgid "enabled"
+msgstr "已启用"
+
+msgid "name"
+msgstr "名称"
+
+msgid "protocol"
+msgstr "协议"
+
+msgid "match type"
+msgstr "匹配类型"
+
+msgid "match value"
+msgstr "匹配值"
+
+msgid "counter"
+msgstr "计数器"
+
+msgid "action"
+msgstr "动作"
+
+msgid "both"
+msgstr "both (TCP+UDP)"
+
+msgid "tcp"
+msgstr "tcp"
+
+msgid "udp"
+msgstr "udp"
+
+msgid "dest ip"
+msgstr "目标 IP (dst ip)"
+
+msgid "src ip"
+msgstr "源 IP (src ip)"
+
+msgid "src mac"
+msgstr "源 MAC (src mac)"
+
+msgid "dest port"
+msgstr "目标端口 (dst port)"
+
+msgid "src port"
+msgstr "源端口 (src port)"
+
+msgid "custom (raw)"
+msgstr "自定义 (raw)"
+
+msgid "return"
+msgstr "return (跳过)"
+
+msgid "accept"
+msgstr "accept (放行)"
+
+msgid "drop"
+msgstr "drop (丢弃)"
+
+msgid "reset to default"
+msgstr "恢复默认"
+
+msgid "reset to default templates"
+msgstr "恢复默认模版"
+
+msgid "this will delete ALL current rules and generate default templates. are you sure?"
+msgstr "这将删除当前所有规则并加载推荐的默认模版。确定吗？"
+
+msgid "really delete this rule?"
+msgstr "确定要删除这条规则吗？"
+
+# Lists Page
+msgid "flowproxy - lists"
+msgstr "FlowProxy - 名单管理"
+
+msgid "elements"
+msgstr "元素列表"
+
+msgid "file_path"
+msgstr "文件路径"
+
+msgid "save & apply"
+msgstr "保存并应用"
+
+msgid "save & apply this list"
+msgstr "保存并应用此名单"
+
+msgid "applying changes..."
+msgstr "正在应用更改..."
+
+msgid "list changes applied successfully."
+msgstr "名单更改已成功应用。"
+
+# Preview Page
+msgid "flowproxy - preview"
+msgstr "FlowProxy - 配置预览"
+
+msgid "inspection tabs"
+msgstr "检测项目"
+
+msgid "generated config"
+msgstr "生成的配置 (Preview)"
+
+msgid "live runtime state"
+msgstr "实时运行状态 (Live)"
+
+msgid "this is the nftables file generated based on your CURRENT rules (saved but maybe not applied)."
+msgstr "这是基于您当前已保存规则生成的 nftables 配置文件。"
+
+msgid "this shows the ACTUAL rules and routing policies currently active in the linux kernel."
+msgstr "这里展示的是当前 Linux 内核中真正生效的规则、策略和路由。"
+
+msgid "copy raw config"
+msgstr "复制原始配置"
+
+msgid "refresh status"
+msgstr "刷新实时状态"
+
+msgid "copied"
+msgstr "已复制"
+
+msgid "loading..."
 msgstr "加载中..."
-
-msgid "Loading logs..."
-msgstr "加载日志中..."
