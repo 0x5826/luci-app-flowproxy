@@ -2,7 +2,6 @@
 # Generate nftables configuration for flowproxy
 
 . /lib/functions.sh
-. /lib/functions/config.sh
 
 CONFIG="flowproxy"
 NFT_TABLE="inet flowproxy"
@@ -45,8 +44,8 @@ get_file_elements() {
 # 获取私有地址配置
 get_private_ips() {
     local auto_generate
-    config_get_bool auto_generate "private_dst_ip_v4" auto_generate 1
-    if [ "$auto_generate" -eq 1 ]; then
+    auto_generate=$(uci -q get "$CONFIG.private_dst_ip_v4.auto_generate")
+    if [ "$auto_generate" = "1" ]; then
         echo "10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16"
     else
         get_set_elements "private_dst_ip_v4"
@@ -57,7 +56,6 @@ PROXY_IP=$(get_config "global" "proxy_ip" "")
 TPROXY_MARK=$(get_config "global" "tproxy_mark" "100")
 
 # 提取各个集合的数据
-config_load "$CONFIG"
 SRC_MAC_ELEMS=$(get_set_elements "no_proxy_src_mac")
 SRC_IP_ELEMS=$(get_set_elements "no_proxy_src_ip_v4")
 DST_IP_ELEMS=$(get_set_elements "no_proxy_dst_ip_v4")
@@ -78,35 +76,37 @@ echo "" > "$UDP_RULES_TMP"
 generate_user_rule() {
     local section="$1"
     local enabled protocol match_type match_value action counter
-    config_get_bool enabled "$section" enabled 1
-    config_get protocol "$section" protocol "both"
-    config_get match_type "$section" match_type "custom"
-    config_get match_value "$section" match_value ""
-    config_get action "$section" action "return"
-    config_get_bool counter "$section" counter 0
+    
+    enabled=$(uci -q get "$CONFIG.$section.enabled")
+    [ "$enabled" = "0" ] && return
+    
+    protocol=$(uci -q get "$CONFIG.$section.protocol")
+    [ -z "$protocol" ] && protocol="both"
+    
+    match_type=$(uci -q get "$CONFIG.$section.match_type")
+    match_value=$(uci -q get "$CONFIG.$section.match_value")
+    action=$(uci -q get "$CONFIG.$section.action")
+    [ -z "$action" ] && action="return"
+    
+    counter=$(uci -q get "$CONFIG.$section.counter")
 
-    [ "$enabled" -eq 0 ] || [ -z "$match_value" ] && return
+    [ -z "$match_value" ] && return
 
-    local segment_tcp=""
-    local segment_udp=""
+    local seg_tcp=""
+    local seg_udp=""
 
     case "$match_type" in
-        src_mac)  segment_tcp="ether saddr $match_value"; segment_udp="ether saddr $match_value" ;;
-        src_ip)   segment_tcp="ip saddr $match_value"; segment_udp="ip saddr $match_value" ;;
-        dst_ip)   segment_tcp="ip daddr $match_value"; segment_udp="ip daddr $match_value" ;;
-        src_port) segment_tcp="tcp sport $match_value"; segment_udp="udp sport $match_value" ;;
-        dst_port) segment_tcp="tcp dport $match_value"; segment_udp="udp dport $match_value" ;;
-        *)        segment_tcp="$match_value"; segment_udp="$match_value" ;; # custom
+        src_mac)  seg_tcp="ether saddr $match_value"; seg_udp="ether saddr $match_value" ;;
+        src_ip)   seg_tcp="ip saddr $match_value"; seg_udp="ip saddr $match_value" ;;
+        dst_ip)   seg_tcp="ip daddr $match_value"; seg_udp="ip daddr $match_value" ;;
+        src_port) seg_tcp="tcp sport $match_value"; seg_udp="udp sport $match_value" ;;
+        dst_port) seg_tcp="tcp dport $match_value"; seg_udp="udp dport $match_value" ;;
+        *)        seg_tcp="$match_value"; seg_udp="$match_value" ;;
     esac
 
-    # 附加计数器和动作
-    local line_tcp="$segment_tcp"
-    local line_udp="$segment_udp"
-    [ "$counter" -eq 1 ] && line_tcp="$line_tcp counter" && line_udp="$line_udp counter"
-    line_tcp="$line_tcp $action"
-    line_udp="$line_udp $action"
+    local line_tcp="$seg_tcp"; [ "$counter" = "1" ] && line_tcp="$line_tcp counter"; line_tcp="$line_tcp $action"
+    local line_udp="$seg_udp"; [ "$counter" = "1" ] && line_udp="$line_udp counter"; line_udp="$line_udp $action"
 
-    # 变量替换
     line_tcp=$(echo "$line_tcp" | sed "s/@proxy_server_ip/$PROXY_IP/g")
     line_udp=$(echo "$line_udp" | sed "s/@proxy_server_ip/$PROXY_IP/g")
 
@@ -118,80 +118,39 @@ generate_user_rule() {
     fi
 }
 
-config_foreach generate_user_rule "rule"
+# 遍历所有 rule 类型
+for s in $(uci show "$CONFIG" | grep "=rule" | cut -d'.' -f2 | cut -d'=' -f1); do
+    generate_user_rule "$s"
+done
 
 # 生成最终配置文件
 cat > "$OUTPUT_FILE" << EOF
 #!/usr/sbin/nft -f
 
-# 清理旧表
 delete table $NFT_TABLE 2>/dev/null
 
-# 创建表
 table $NFT_TABLE {
-    # 名单集合
-    set no_proxy_src_mac {
-        type ether_addr
-        elements = { $SRC_MAC_ELEMS }
-        comment "不代理的源MAC地址"
-    }
+    set no_proxy_src_mac { type ether_addr; elements = { $SRC_MAC_ELEMS }; }
+    set no_proxy_src_ip_v4 { type ipv4_addr; elements = { $SRC_IP_ELEMS }; }
+    set no_proxy_dst_ip_v4 { type ipv4_addr; elements = { $DST_IP_ELEMS }; }
+    set private_dst_ip_v4 { type ipv4_addr; elements = { $PRIVATE_IPS }; }
+    set chnroute_dst_ip_v4 { type ipv4_addr; elements = { $CHNROUTE_ELEMS }; }
+    set no_proxy_dst_tcp_ports { type inet_service; elements = { $TCP_PORT_ELEMS }; }
+    set no_proxy_dst_udp_ports { type inet_service; elements = { $UDP_PORT_ELEMS }; }
 
-    set no_proxy_src_ip_v4 {
-        type ipv4_addr
-        elements = { $SRC_IP_ELEMS }
-        comment "不代理的源IPv4地址"
-    }
-
-    set no_proxy_dst_ip_v4 {
-        type ipv4_addr
-        elements = { $DST_IP_ELEMS }
-        comment "不代理的目标IPv4地址"
-    }
-
-    set private_dst_ip_v4 {
-        type ipv4_addr
-        elements = { $PRIVATE_IPS }
-        comment "私有IPv4地址段"
-    }
-
-    set chnroute_dst_ip_v4 {
-        type ipv4_addr
-        elements = { $CHNROUTE_ELEMS }
-        comment "中国IPv4地址段"
-    }
-
-    set no_proxy_dst_tcp_ports {
-        type inet_service
-        elements = { $TCP_PORT_ELEMS }
-        comment "不代理的TCP端口"
-    }
-
-    set no_proxy_dst_udp_ports {
-        type inet_service
-        elements = { $UDP_PORT_ELEMS }
-        comment "不代理的UDP端口"
-    }
-
-    # TCP 标记链
     chain LAN_MARKFLOW_TCP {
         type filter hook prerouting priority mangle; policy accept;
 $(cat "$TCP_RULES_TMP")
-        # 默认打标
         meta mark set $TPROXY_MARK
     }
 
-    # UDP 标记链
     chain LAN_MARKFLOW_UDP {
         type filter hook prerouting priority mangle; policy accept;
 $(cat "$UDP_RULES_TMP")
-        # 默认打标
         meta mark set $TPROXY_MARK
     }
 }
 EOF
 
-# 清理临时文件
 rm -f "$TCP_RULES_TMP" "$UDP_RULES_TMP"
-
-# 输出内容（供预览使用）
 cat "$OUTPUT_FILE"

@@ -35,22 +35,16 @@ return L.view.extend({
             _('view the generated configuration and live kernel state.'));
 
         s = m.section(form.NamedSection, 'global', 'flowproxy', _('inspection tabs'));
-        
-        // 增加标签页切换
         s.tab('generated', _('generated config'));
         s.tab('runtime', _('live runtime state'));
 
-        // Tab 1: 生成的配置 (Requirement 1)
+        // Tab 1: 生成的配置
         o = s.taboption('generated', form.SectionValue, '_gen_val', form.NamedSection, 'global', 'flowproxy');
         var ss_gen = o.subsection;
         ss_gen.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
                 E('div', { 'style': 'padding: 10px; border-bottom: 1px solid #eee; margin-bottom: 10px;' }, [
-                    E('p', {}, _('this is the nftables file generated based on your CURRENT rules (saved but maybe not applied).')),
-                    E('button', {
-                        'class': 'cbi-button cbi-button-apply',
-                        'click': function() { ui.addNotification(null, E('p', _('copied')), 'info'); navigator.clipboard.writeText(genConfig); }
-                    }, _('copy config'))
+                    E('p', {}, _('this is the nftables file generated based on your CURRENT rules (saved but maybe not applied).'))
                 ]),
                 E('textarea', {
                     'style': 'width: 100%; height: 600px; font-family: monospace; font-size: 12px; background: #fdfdfd; border: none; padding: 10px;',
@@ -59,7 +53,7 @@ return L.view.extend({
             ]);
         }, this);
 
-        // Tab 2: 内核实时状态 (Requirement 2)
+        // Tab 2: 内核实时状态
         o = s.taboption('runtime', form.SectionValue, '_run_val', form.NamedSection, 'global', 'flowproxy');
         var ss_run = o.subsection;
         ss_run.render = L.bind(function() {
