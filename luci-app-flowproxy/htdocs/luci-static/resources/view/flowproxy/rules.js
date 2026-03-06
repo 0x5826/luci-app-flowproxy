@@ -20,7 +20,7 @@ return L.view.extend({
         m = new form.Map('flowproxy', _('flowproxy - rules'),
             _('define nftables rules. choose match type and provide value (IP, MAC, or @set).'));
 
-        // 1. 快捷模板区域 (补全了 src ip 和 dst ip)
+        // 1. 快捷模板区域
         s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
         s.render = L.bind(function() {
             var presets = {
@@ -33,31 +33,38 @@ return L.view.extend({
                 'tcp_ports': { name: 'skip ports (dst)', type: 'dst_port', val: '@no_proxy_dst_tcp_ports', proto: 'tcp' }
             };
 
-            return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'style': 'padding: 10px; display: flex; flex-wrap: wrap; gap: 8px;' }, 
-                    Object.keys(presets).map(function(k) {
-                        return E('button', {
-                            'class': 'cbi-button cbi-button-apply',
-                            'click': function(ev) {
-                                ev.preventDefault();
-                                var sid = uci.add('flowproxy', 'rule');
-                                uci.set('flowproxy', sid, 'name', presets[k].name);
-                                uci.set('flowproxy', sid, 'enabled', '1');
-                                uci.set('flowproxy', sid, 'protocol', presets[k].proto);
-                                uci.set('flowproxy', sid, 'match_type', presets[k].type);
-                                uci.set('flowproxy', sid, 'match_value', presets[k].val);
-                                uci.set('flowproxy', sid, 'action', 'return');
-                                uci.set('flowproxy', sid, 'counter', '0');
-                                uci.save();
-                                location.reload();
-                            }
-                        }, [ E('em', { 'class': 'icon-plus' }), ' ', presets[k].name ]);
-                    })
-                )
+            var container = E('div', { 'class': 'cbi-section-node' }, [
+                E('div', { 'style': 'padding: 10px; display: flex; flex-wrap: wrap; gap: 8px;' })
             ]);
+
+            Object.keys(presets).forEach(function(k) {
+                var p = presets[k];
+                var btn = E('button', {
+                    'class': 'cbi-button cbi-button-apply',
+                    'click': ui.createHandlerFn(this, function() {
+                        var sid = uci.add('flowproxy', 'rule');
+                        uci.set('flowproxy', sid, 'name', p.name);
+                        uci.set('flowproxy', sid, 'enabled', '1');
+                        uci.set('flowproxy', sid, 'protocol', p.proto);
+                        uci.set('flowproxy', sid, 'match_type', p.type);
+                        uci.set('flowproxy', sid, 'match_value', p.val);
+                        uci.set('flowproxy', sid, 'action', 'return');
+                        uci.set('flowproxy', sid, 'counter', '0');
+                        
+                        // 使用 .then() 确保保存成功后再刷新
+                        return uci.save().then(function() {
+                            location.reload();
+                        });
+                    })
+                }, [ E('em', { 'class': 'icon-plus' }), ' ', p.name ]);
+                
+                container.querySelector('div').appendChild(btn);
+            }, this);
+
+            return container;
         }, this);
 
-        // 2. 规则列表 (TableSection)
+        // 2. 规则列表
         s = m.section(form.TableSection, 'rule', _('matching rules'));
         s.addremove = true;
         s.anonymous = true;
@@ -73,8 +80,10 @@ return L.view.extend({
             uci.set('flowproxy', sid, 'match_value', '');
             uci.set('flowproxy', sid, 'action', 'return');
             uci.set('flowproxy', sid, 'counter', '0');
-            uci.save();
-            location.reload();
+            
+            return uci.save().then(function() {
+                location.reload();
+            });
         };
 
         o = s.option(form.Flag, 'enabled', _('enabled'));
