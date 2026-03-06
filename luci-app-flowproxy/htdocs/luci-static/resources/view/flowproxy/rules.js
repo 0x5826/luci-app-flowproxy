@@ -18,9 +18,9 @@ return L.view.extend({
         nftsets.push('@proxy_server_ip');
 
         m = new form.Map('flowproxy', _('代理分流 - 规则管理'),
-            _('define nftables rules. you can independently enable or disable TCP/UDP diversion in each section.'));
+            _('define nftables rules. separate lists for TCP and UDP flows.'));
 
-        // 1. 快捷模板区域 (紧凑型设计)
+        // 1. 快捷模板区域
         s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
         s.render = L.bind(function() {
             var presets = {
@@ -44,7 +44,6 @@ return L.view.extend({
                 btnGroup.appendChild(E('button', {
                     'class': 'cbi-button cbi-button-apply',
                     'style': 'padding: 2px 8px; font-size: 0.9em;',
-                    'title': _('Click to add to BOTH TCP and UDP lists'),
                     'click': ui.createHandlerFn(this, function() {
                         ['tcp_rule', 'udp_rule'].forEach(function(type) {
                             var sid = uci.add('flowproxy', type);
@@ -63,24 +62,22 @@ return L.view.extend({
             return container;
         }, this);
 
+        // 2. 总开关控制区域 (修正后的安全写法)
+        s = m.section(form.NamedSection, 'global', 'flowproxy', _('diversion master switches'));
+        
+        o = s.option(form.Flag, 'tcp_enabled', _('enable TCP matching rules'));
+        o.rmempty = false; o.default = '1';
+
+        o = s.option(form.Flag, 'udp_enabled', _('enable UDP matching rules'));
+        o.rmempty = false; o.default = '1';
+
         // 辅助函数：创建规则表格
-        var renderTable = L.bind(function(map, type, title, switch_option) {
+        var renderTable = L.bind(function(map, type, title) {
             var s = map.section(form.TableSection, type, title);
             s.addremove = true;
             s.anonymous = true;
             s.sortable = true;
-            s.nodescription = false; // 允许显示描述，用于放开关
-
-            // 核心优化：在表格说明位置放置总开关
-            s.description = E('div', { 'style': 'margin-bottom: 10px; display: flex; align-items: center; gap: 10px; background: #fafafa; padding: 10px; border-radius: 4px;' }, [
-                E('label', { 'style': 'font-weight: bold;' }, _('Master Switch for this list:')),
-                // 借用 map 的 global section 来渲染开关
-                (function() {
-                    var o = new form.Flag(map, 'flowproxy', 'global', switch_option, _('Enable this diversion chain'));
-                    o.rmempty = false;
-                    return o.render('global'); // 渲染 global section 的对应选项
-                })()
-            ]);
+            s.nodescription = true;
 
             s.renderSectionAdd = function(extra_class) {
                 var node = form.TableSection.prototype.renderSectionAdd.apply(this, [extra_class]);
@@ -157,8 +154,11 @@ return L.view.extend({
             o.default = 'return'; o.width = '10%';
         }, this);
 
-        renderTable(m, 'tcp_rule', _('TCP Matching Rules'), 'tcp_enabled');
-        renderTable(m, 'udp_rule', _('UDP Matching Rules'), 'udp_enabled');
+        // 3. TCP 规则列表
+        renderTable(m, 'tcp_rule', _('TCP Matching Rules'));
+
+        // 4. UDP 规则列表
+        renderTable(m, 'udp_rule', _('UDP Matching Rules'));
 
         return m.render();
     }
