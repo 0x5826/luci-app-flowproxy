@@ -1,7 +1,6 @@
 'use strict';
 'require form';
 'require uci';
-'require rpc';
 'require view';
 'require ui';
 
@@ -19,9 +18,18 @@ return L.view.extend({
         nftsets.push('@proxy_server_ip');
 
         m = new form.Map('flowproxy', _('代理分流 - 规则管理'),
-            _('define nftables rules. choose match type and provide value. rules are separated into TCP and UDP lists.'));
+            _('define nftables rules. you can independently enable or disable TCP/UDP diversion.'));
 
-        // 1. 快捷模板区域
+        // 1. 协议总开关区域
+        s = m.section(form.NamedSection, 'global', 'flowproxy', _('diversion master switches'));
+        
+        o = s.option(form.Flag, 'tcp_enabled', _('enable TCP diversion'));
+        o.rmempty = false; o.default = '1';
+
+        o = s.option(form.Flag, 'udp_enabled', _('enable UDP diversion'));
+        o.rmempty = false; o.default = '1';
+
+        // 2. 快捷模板区域
         s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
         s.render = L.bind(function() {
             var presets = {
@@ -71,19 +79,15 @@ return L.view.extend({
             s.sortable = true;
             s.nodescription = true;
 
-            // 拆分的重置按钮逻辑
             s.renderSectionAdd = function(extra_class) {
                 var node = form.TableSection.prototype.renderSectionAdd.apply(this, [extra_class]);
                 var label = (type === 'tcp_rule') ? 'TCP' : 'UDP';
-                
                 var resetBtn = E('button', {
                     'class': 'cbi-button cbi-button-reset',
                     'style': 'margin-left: 10px; border: 1px solid #cc0000; color: #cc0000;',
-                    'title': _('Reset only %s rules').format(label),
                     'click': ui.createHandlerFn(this, function() {
                         if (confirm(_('this will delete ALL current %s rules and generate default templates. are you sure?').format(label))) {
                             uci.sections('flowproxy', type).forEach(function(r) { uci.remove('flowproxy', r['.name']); });
-
                             var defs = [
                                 { n: 'skip local (dst)', t: 'custom', v: 'fib daddr type { unspec, local, anycast, multicast }' },
                                 { n: 'skip proxy server', t: 'src_ip', v: '@proxy_server_ip' },
@@ -91,25 +95,17 @@ return L.view.extend({
                                 { n: 'skip private (dst)', t: 'dst_ip', v: '@private_dst_ip_v4' },
                                 { n: 'skip china (dst)', t: 'dst_ip', v: '@chnroute_dst_ip_v4' }
                             ];
-                            
-                            if (type === 'tcp_rule') {
-                                defs.push({ n: 'skip ports (dst)', t: 'dst_port', v: '@no_proxy_dst_tcp_ports' });
-                            }
-
+                            if (type === 'tcp_rule') defs.push({ n: 'skip ports (dst)', t: 'dst_port', v: '@no_proxy_dst_tcp_ports' });
                             defs.forEach(function(r) {
                                 var sid = uci.add('flowproxy', type);
-                                uci.set('flowproxy', sid, 'name', r.n);
-                                uci.set('flowproxy', sid, 'enabled', '1');
-                                uci.set('flowproxy', sid, 'match_type', r.t);
-                                uci.set('flowproxy', sid, 'match_value', r.v);
-                                uci.set('flowproxy', sid, 'action', 'return');
-                                uci.set('flowproxy', sid, 'counter', '0');
+                                uci.set('flowproxy', sid, 'name', r.n); uci.set('flowproxy', sid, 'enabled', '1');
+                                uci.set('flowproxy', sid, 'match_type', r.t); uci.set('flowproxy', sid, 'match_value', r.v);
+                                uci.set('flowproxy', sid, 'action', 'return'); uci.set('flowproxy', sid, 'counter', '0');
                             });
                             return uci.save().then(function() { location.reload(); });
                         }
                     })
                 }, [ E('em', { 'class': 'icon-reload' }), ' ', _('reset %s templates').format(label) ]);
-
                 node.appendChild(resetBtn);
                 return node;
             };

@@ -45,7 +45,10 @@ gen_set_definition() {
     file_path=$(uci -q get "$CONFIG.$section.file_path")
     if [ -n "$file_path" ] && [ -f "$file_path" ]; then
         local file_elems=$(get_file_elements "$file_path")
-        [ -n "$file_elems" ] && { [ -n "$elems" ] && elems="${elems}, "; elems="${elems}${file_elems}"; }
+        if [ -n "$file_elems" ]; then
+            [ -n "$elems" ] && elems="${elems}, "
+            elems="${elems}${file_elems}"
+        fi
     fi
 
     case "$elems" in */*|*-*) is_interval=1 ;; *) is_interval=0 ;; esac
@@ -114,12 +117,12 @@ process_rule() {
     line="$line $action"
 
     local proxy_ip_final=$(uci -q get "$CONFIG.global.proxy_ip")
-    # 使用管道符作为 sed 界定符，防止内容包含斜杠导致的崩溃
     line=$(echo "$line" | sed "s|@proxy_server_ip|$proxy_ip_final|g")
 
     [ -n "$line" ] && echo "        $line"
 }
 
+# --- 开始生成 ---
 cat > "$OUTPUT_FILE" << EOF
 #!/usr/sbin/nft -f
 table $NFT_TABLE {
@@ -130,31 +133,42 @@ for s in $(uci -q show "$CONFIG" | grep "=nftset" | cut -d'.' -f2 | cut -d'=' -f
     gen_set_definition "$s" >> "$OUTPUT_FILE"
 done
 
+# 读取 TCP/UDP 总开关
+TCP_ENABLED=$(uci -q get "$CONFIG.global.tcp_enabled" || echo "1")
+UDP_ENABLED=$(uci -q get "$CONFIG.global.udp_enabled" || echo "1")
+TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
+
+# 构建 TCP 链
 cat >> "$OUTPUT_FILE" << EOF
     chain LAN_MARKFLOW_TCP {
         type filter hook prerouting priority mangle; policy accept;
-        meta nfproto != ipv4 return
 EOF
-for s in $(uci -q show "$CONFIG" | grep "=tcp_rule" | cut -d'.' -f2 | cut -d'=' -f1); do
-    process_rule "$s" "tcp" >> "$OUTPUT_FILE"
-done
-TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
-cat >> "$OUTPUT_FILE" << EOF
-        ip protocol tcp counter meta mark set $TPROXY_MARK
-    }
+if [ "$TCP_ENABLED" = "1" ]; then
+    echo "        meta nfproto != ipv4 return" >> "$OUTPUT_FILE"
+    for s in $(uci -q show "$CONFIG" | grep "=tcp_rule" | cut -d'.' -f2 | cut -d'=' -f1); do
+        process_rule "$s" "tcp" >> "$OUTPUT_FILE"
+    done
+    echo "        ip protocol tcp counter meta mark set $TPROXY_MARK" >> "$OUTPUT_FILE"
+else
+    echo "        # TCP diversion disabled by master switch" >> "$OUTPUT_FILE"
+fi
+echo "    }" >> "$OUTPUT_FILE"
 
+# 构建 UDP 链
+cat >> "$OUTPUT_FILE" << EOF
     chain LAN_MARKFLOW_UDP {
         type filter hook prerouting priority mangle; policy accept;
-        meta nfproto != ipv4 return
 EOF
-for s in $(uci -q show "$CONFIG" | grep "=udp_rule" | cut -d'.' -f2 | cut -d'=' -f1); do
-    process_rule "$s" "udp" >> "$OUTPUT_FILE"
-done
-cat >> "$OUTPUT_FILE" << EOF
-        ip protocol udp counter meta mark set $TPROXY_MARK
-    }
-}
-EOF
+if [ "$UDP_ENABLED" = "1" ]; then
+    echo "        meta nfproto != ipv4 return" >> "$OUTPUT_FILE"
+    for s in $(uci -q show "$CONFIG" | grep "=udp_rule" | cut -d'.' -f2 | cut -d'=' -f1); do
+        process_rule "$s" "udp" >> "$OUTPUT_FILE"
+    done
+    echo "        ip protocol udp counter meta mark set $TPROXY_MARK" >> "$OUTPUT_FILE"
+else
+    echo "        # UDP diversion disabled by master switch" >> "$OUTPUT_FILE"
+fi
+echo "    }" >> "$OUTPUT_FILE"
+echo "}" >> "$OUTPUT_FILE"
 
-rm -f /tmp/flowproxy_tcp_rules.tmp /tmp/flowproxy_udp_rules.tmp 2>/dev/null
 cat "$OUTPUT_FILE"
