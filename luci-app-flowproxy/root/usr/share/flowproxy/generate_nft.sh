@@ -12,17 +12,32 @@ get_config() {
     uci -q get "$CONFIG.$1.$2" || echo "$3"
 }
 
+# 辅助函数：生成 set 定义
+# 参数: 1:set名, 2:类型, 3:数据内容, 4:是否为网段(1/0)
+gen_set_definition() {
+    local name="$1"
+    local type="$2"
+    local elems="$3"
+    local is_interval="$4"
+    
+    printf "    set %s {\n" "$name"
+    printf "        type %s\n" "$type"
+    [ "$is_interval" = "1" ] && printf "        flags interval\n"
+    if [ -n "$elems" ]; then
+        printf "        elements = { %s }\n" "$elems"
+    fi
+    printf "    }\n\n"
+}
+
 # 辅助函数：将 UCI list 转换为 nft 元素列表
 get_set_elements() {
     local section="$1"
     local elements=""
-    
     append_element() {
         local elem="$1"
         [ -n "$elements" ] && elements="${elements}, "
         elements="${elements}${elem}"
     }
-    
     config_list_foreach "$section" "elements" append_element
     echo "$elements"
 }
@@ -31,7 +46,6 @@ get_set_elements() {
 get_file_elements() {
     local file_path="$1"
     [ ! -f "$file_path" ] && return
-    
     local elements=""
     while IFS= read -r line; do
         case "$line" in ''|\#*) continue ;; esac
@@ -55,15 +69,13 @@ get_private_ips() {
 PROXY_IP=$(get_config "global" "proxy_ip" "")
 TPROXY_MARK=$(get_config "global" "tproxy_mark" "100")
 
-# 提取各个集合的数据
+# 提取数据
 SRC_MAC_ELEMS=$(get_set_elements "no_proxy_src_mac")
 SRC_IP_ELEMS=$(get_set_elements "no_proxy_src_ip_v4")
 DST_IP_ELEMS=$(get_set_elements "no_proxy_dst_ip_v4")
 PRIVATE_IPS=$(get_private_ips)
 TCP_PORT_ELEMS=$(get_set_elements "no_proxy_dst_tcp_ports")
 UDP_PORT_ELEMS=$(get_set_elements "no_proxy_dst_udp_ports")
-
-# 处理 chnroute 文件
 CHNROUTE_FILE=$(get_config "chnroute_dst_ip_v4" "file_path" "/usr/share/flowproxy/chnroute.txt")
 CHNROUTE_ELEMS=$(get_file_elements "$CHNROUTE_FILE")
 
@@ -87,10 +99,12 @@ generate_user_rule() {
     match_value=$(uci -q get "$CONFIG.$section.match_value")
     action=$(uci -q get "$CONFIG.$section.action")
     [ -z "$action" ] && action="return"
-    
     counter=$(uci -q get "$CONFIG.$section.counter")
 
     [ -z "$match_value" ] && return
+
+    # 移除 match_value 中可能残留的 return/accept/drop 动作词，防止语法冲突
+    match_value=$(echo "$match_value" | sed -E 's/ (return|accept|drop)$//g')
 
     local seg_tcp=""
     local seg_udp=""
@@ -118,7 +132,7 @@ generate_user_rule() {
     fi
 }
 
-# 遍历所有 rule 类型
+# 遍历所有 rule
 for s in $(uci show "$CONFIG" | grep "=rule" | cut -d'.' -f2 | cut -d'=' -f1); do
     generate_user_rule "$s"
 done
@@ -127,16 +141,14 @@ done
 cat > "$OUTPUT_FILE" << EOF
 #!/usr/sbin/nft -f
 
-delete table $NFT_TABLE 2>/dev/null
-
 table $NFT_TABLE {
-    set no_proxy_src_mac { type ether_addr; elements = { $SRC_MAC_ELEMS }; }
-    set no_proxy_src_ip_v4 { type ipv4_addr; elements = { $SRC_IP_ELEMS }; }
-    set no_proxy_dst_ip_v4 { type ipv4_addr; elements = { $DST_IP_ELEMS }; }
-    set private_dst_ip_v4 { type ipv4_addr; elements = { $PRIVATE_IPS }; }
-    set chnroute_dst_ip_v4 { type ipv4_addr; elements = { $CHNROUTE_ELEMS }; }
-    set no_proxy_dst_tcp_ports { type inet_service; elements = { $TCP_PORT_ELEMS }; }
-    set no_proxy_dst_udp_ports { type inet_service; elements = { $UDP_PORT_ELEMS }; }
+$(gen_set_definition "no_proxy_src_mac" "ether_addr" "$SRC_MAC_ELEMS" 0)
+$(gen_set_definition "no_proxy_src_ip_v4" "ipv4_addr" "$SRC_IP_ELEMS" 1)
+$(gen_set_definition "no_proxy_dst_ip_v4" "ipv4_addr" "$DST_IP_ELEMS" 1)
+$(gen_set_definition "private_dst_ip_v4" "ipv4_addr" "$PRIVATE_IPS" 1)
+$(gen_set_definition "chnroute_dst_ip_v4" "ipv4_addr" "$CHNROUTE_ELEMS" 1)
+$(gen_set_definition "no_proxy_dst_tcp_ports" "inet_service" "$TCP_PORT_ELEMS" 1)
+$(gen_set_definition "no_proxy_dst_udp_ports" "inet_service" "$UDP_PORT_ELEMS" 1)
 
     chain LAN_MARKFLOW_TCP {
         type filter hook prerouting priority mangle; policy accept;

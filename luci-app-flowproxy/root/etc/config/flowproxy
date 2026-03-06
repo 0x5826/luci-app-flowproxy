@@ -12,7 +12,7 @@ config rule
 	option name 'Skip Local/Multicast'
 	option protocol 'both'
 	option enabled '1'
-	option content 'meta nfproto ipv4 ip daddr type { local, anycast, multicast }'
+	option content 'fib daddr type { local, anycast, multicast }'
 	option action 'return'
 	option counter '0'
 
