@@ -19,10 +19,14 @@ var callGetInterfaces = rpc.declare({
 
 return L.view.extend({
     load: function() {
-        return uci.load('flowproxy').catch(function() { return {}; });
+        return Promise.all([
+            uci.load('flowproxy').catch(function() { return {}; }),
+            callGetInterfaces().catch(function() { return { interfaces: [] }; })
+        ]);
     },
 
     render: function(data) {
+        var ifdata = data[1];
         var m, s, o;
 
         m = new form.Map('flowproxy', _('代理分流'),
@@ -56,7 +60,11 @@ return L.view.extend({
         o.default = '192.168.1.100';
 
         o = s.option(form.ListValue, 'interface', _('network interface'));
-        o.value('br-lan', 'br-lan');
+        if (ifdata && ifdata.interfaces) {
+            ifdata.interfaces.forEach(function(i) {
+                o.value(i.name, i.name);
+            });
+        }
         o.default = 'br-lan';
 
         o = s.option(form.Value, 'tproxy_mark', _('tproxy mark'));
@@ -64,15 +72,6 @@ return L.view.extend({
 
         return m.render().then(L.bind(function(node) {
             this.refreshStatus(m);
-            
-            callGetInterfaces().then(L.bind(function(ifdata) {
-                var ifaceOpt = m.lookupOption('interface', 'global')[0];
-                if (ifaceOpt && ifdata?.interfaces) {
-                    ifdata.interfaces.forEach(function(i) {
-                        ifaceOpt.value(i.name, i.name);
-                    });
-                }
-            }, this));
 
             poll.add(L.bind(function() {
                 return this.refreshStatus(m);

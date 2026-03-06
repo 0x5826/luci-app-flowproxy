@@ -233,3 +233,6 @@ msgstr "暂无日志内容"
 
 msgid "really clear all service logs?"
 msgstr "确定要清空所有服务日志吗？"
+
+msgid "Add rule"
+msgstr "添加规则"

@@ -63,7 +63,7 @@ return L.view.extend({
             var s = map.section(form.TableSection, type, title);
             s.addremove = true;
             s.anonymous = true;
-            s.sortable = true;
+            s.sortable = false;
             s.nodescription = true;
 
             s.render = L.bind(function() {
@@ -110,6 +110,10 @@ return L.view.extend({
             s.renderSectionAdd = function(extra_class) {
                 var node = form.TableSection.prototype.renderSectionAdd.apply(this, [extra_class]);
                 var label = (type === 'tcp_rule') ? 'TCP' : 'UDP';
+
+                var addBtn = node.querySelector('.cbi-button-add');
+                if (addBtn) addBtn.innerText = _('Add rule');
+
                 var resetBtn = E('button', {
                     'class': 'cbi-button cbi-button-reset',
                     'style': 'margin-left: 10px; border: 1px solid #cc0000; color: #cc0000;',

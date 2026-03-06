@@ -414,3 +414,6 @@ msgstr ""
 
 msgid "Loading logs..."
 msgstr ""
+
+msgid "Add rule"
+msgstr ""
