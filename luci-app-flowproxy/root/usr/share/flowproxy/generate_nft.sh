@@ -11,7 +11,12 @@ OUTPUT_FILE="/tmp/flowproxy_nft.conf"
 
 ENABLED_SETS=""
 
-# 辅助函数：获取 Set 定义
+# 辅助函数
+get_config() {
+    uci -q get "$CONFIG.$1.$2" || echo "$3"
+}
+
+# 辅助函数：生成 set 定义
 gen_set_definition() {
     local section="$1"
     local type enabled auto_gen file_path elems is_interval
@@ -66,7 +71,6 @@ get_file_elements() {
 }
 
 # 规则处理逻辑
-# 参数: 1:section名, 2:协议(tcp/udp)
 process_rule() {
     local section="$1"
     local proto="$2"
@@ -82,34 +86,45 @@ process_rule() {
     counter=$(uci -q get "$CONFIG.$section.counter")
     [ -z "$match_value" ] && return
 
-    # 安全检查：引用 Set 是否启用
+    # 1. 安全过滤：检查 Set 引用
     case "$match_value" in
         @*)
             local set_ref=$(echo "$match_value" | cut -d' ' -f1)
-            [ "$set_ref" != "@proxy_server_ip" ] && ! echo "$ENABLED_SETS" | grep -q "$set_ref" && return
+            # 如果是引用代理服务器 IP，但 IP 未配置，则直接跳过该规则
+            if [ "$set_ref" = "@proxy_server_ip" ]; then
+                local proxy_ip=$(uci -q get "$CONFIG.global.proxy_ip")
+                [ -z "$proxy_ip" ] && return
+            else
+                # 检查其他 Set 是否启用
+                echo "$ENABLED_SETS" | grep -q "$set_ref" || return
+            fi
             ;;
     esac
 
+    # 2. 清理
     match_value=$(echo "$match_value" | sed -E 's/ (return|accept|drop)$//g')
     local segment=""
 
+    # 3. 核心拼接逻辑
     case "$match_type" in
         src_mac)  segment="ip saddr != 0.0.0.0 ether saddr $match_value" ;;
         src_ip)   segment="ip saddr $match_value" ;;
         dst_ip)   segment="ip daddr $match_value" ;;
         src_port) segment="ip protocol $proto $proto sport $match_value" ;;
         dst_port) segment="ip protocol $proto $proto dport $match_value" ;;
-        *)        segment="ip saddr != 0.0.0.0 $match_value" ;;
+        *)        segment="$match_value" ;; # custom 类型直接使用，不加额外修饰
     esac
 
     local line="$segment"
     [ "$counter" = "1" ] && line="$line counter"
     line="$line $action"
 
-    local proxy_ip=$(uci -q get "$CONFIG.global.proxy_ip")
-    line=$(echo "$line" | sed "s/@proxy_server_ip/$proxy_ip/g")
+    # 4. 变量最终替换
+    local proxy_ip_final=$(uci -q get "$CONFIG.global.proxy_ip")
+    line=$(echo "$line" | sed "s/@proxy_server_ip/$proxy_ip_final/g")
 
-    echo "        $line"
+    # 二次确认 line 不为空（防止 sed 异常）
+    [ -n "$line" ] && echo "        $line"
 }
 
 # --- 开始生成 ---
@@ -118,43 +133,41 @@ cat > "$OUTPUT_FILE" << EOF
 table $NFT_TABLE {
 EOF
 
-# 1. 生成 Set
+# 生成 Set
+config_load "$CONFIG"
 for s in $(uci -q show "$CONFIG" | grep "=nftset" | cut -d'.' -f2 | cut -d'=' -f1); do
     gen_set_definition "$s" >> "$OUTPUT_FILE"
 done
 
-# 2. 构建 TCP 链
+# 构建 TCP 链
 cat >> "$OUTPUT_FILE" << EOF
     chain LAN_MARKFLOW_TCP {
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
 EOF
-
 for s in $(uci -q show "$CONFIG" | grep "=tcp_rule" | cut -d'.' -f2 | cut -d'=' -f1); do
     process_rule "$s" "tcp" >> "$OUTPUT_FILE"
 done
-
 TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
 cat >> "$OUTPUT_FILE" << EOF
         ip protocol tcp meta mark set $TPROXY_MARK
     }
 EOF
 
-# 3. 构建 UDP 链
+# 构建 UDP 链
 cat >> "$OUTPUT_FILE" << EOF
     chain LAN_MARKFLOW_UDP {
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
 EOF
-
 for s in $(uci -q show "$CONFIG" | grep "=udp_rule" | cut -d'.' -f2 | cut -d'=' -f1); do
     process_rule "$s" "udp" >> "$OUTPUT_FILE"
 done
-
 cat >> "$OUTPUT_FILE" << EOF
         ip protocol udp meta mark set $TPROXY_MARK
     }
 }
 EOF
 
+rm -f /tmp/flowproxy_tcp_rules.tmp /tmp/flowproxy_udp_rules.tmp 2>/dev/null
 cat "$OUTPUT_FILE"
