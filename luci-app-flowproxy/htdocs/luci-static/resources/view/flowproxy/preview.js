@@ -26,17 +26,16 @@ return L.view.extend({
         });
     },
 
-    // 简单的语法高亮函数
     highlightNft: function(text) {
         if (!text) return '';
         var rules = [
-            { rex: /#(.*)/g, cls: 'comment' },                                      // 注释
-            { rex: /\b(table|chain|set|elements|type)\b/g, cls: 'keyword' },        // 结构关键词
-            { rex: /\b(ip|ip6|tcp|udp|ether|meta|meta nfproto)\b/g, cls: 'proto' },  // 协议/层
-            { rex: /\b(saddr|daddr|sport|dport|mark)\b/g, cls: 'match' },           // 匹配项
-            { rex: /\b(return|accept|drop|reject|counter|set)\b/g, cls: 'action' }, // 动作
-            { rex: /@[\w_]+/g, cls: 'variable' },                                   // 变量/名单引用
-            { rex: /\{|\}/g, cls: 'bracket' }                                       // 括号
+            { rex: /#(.*)/g, cls: 'comment' },
+            { rex: /\b(table|chain|set|elements|type)\b/g, cls: 'keyword' },
+            { rex: /\b(ip|ip6|tcp|udp|ether|meta|meta nfproto)\b/g, cls: 'proto' },
+            { rex: /\b(saddr|daddr|sport|dport|mark)\b/g, cls: 'match' },
+            { rex: /\b(return|accept|drop|reject|counter|set)\b/g, cls: 'action' },
+            { rex: /@[\w_]+/g, cls: 'variable' },
+            { rex: /\{|\}/g, cls: 'bracket' }
         ];
 
         var html = text.replace(/[&<>"']/g, function(m) {
@@ -57,24 +56,25 @@ return L.view.extend({
         var runConfig = (data[2] && data[2].runtime) ? data[2].runtime : '';
         var m, s, o;
 
-        m = new form.Map('flowproxy', _('flowproxy - preview & debug'),
-            _('view the generated configuration and live kernel state with syntax highlighting.'));
+        m = new form.Map('flowproxy', _('flowproxy - preview'),
+            _('view the generated configuration and live kernel state.'));
 
-        // 注入高亮 CSS
+        // 注入浅色主题高亮 CSS
         var style = E('style', {}, `
             .nft-code-container { 
-                background: #282c34; color: #abb2bf; padding: 15px; border-radius: 4px; 
-                font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+                background: #fdfdfd; color: #333333; padding: 15px; border-radius: 4px; 
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
                 font-size: 13px; line-height: 1.5; overflow-x: auto; white-space: pre; 
-                min-height: 400px; width: 100%; border: 1px solid #181a1f;
+                min-height: 400px; width: 100%; border: 1px solid #dddddd;
+                box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
             }
-            .nft-comment { color: #5c6370; font-style: italic; }
-            .nft-keyword { color: #c678dd; font-weight: bold; }
-            .nft-proto { color: #61afef; }
-            .nft-match { color: #d19a66; }
-            .nft-action { color: #e06c75; font-weight: bold; }
-            .nft-variable { color: #98c379; text-decoration: underline; }
-            .nft-bracket { color: #56b6c2; }
+            .nft-comment { color: #999988; font-style: italic; }
+            .nft-keyword { color: #a626a1; font-weight: bold; }
+            .nft-proto { color: #4078f2; }
+            .nft-match { color: #986801; }
+            .nft-action { color: #e45649; font-weight: bold; }
+            .nft-variable { color: #50a14f; font-weight: bold; }
+            .nft-bracket { color: #383a42; }
         `);
         document.head.appendChild(style);
 
@@ -82,11 +82,10 @@ return L.view.extend({
         s.tab('generated', _('generated config'));
         s.tab('runtime', _('live runtime state'));
 
-        // Tab 1: 生成的配置
         o = s.taboption('generated', form.SectionValue, '_gen_val', form.NamedSection, 'global', 'flowproxy');
         o.subsection.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'style': 'padding: 10px; border-bottom: 1px solid #eee; margin-bottom: 10px;' }, [
+                E('div', { 'style': 'padding: 10px; margin-bottom: 5px;' }, [
                     E('button', {
                         'class': 'cbi-button cbi-button-apply',
                         'click': function() { ui.addNotification(null, E('p', _('copied')), 'info'); navigator.clipboard.writeText(genConfig); }
@@ -98,24 +97,22 @@ return L.view.extend({
             ]);
         }, this);
 
-        // Tab 2: 内核实时状态
         o = s.taboption('runtime', form.SectionValue, '_run_val', form.NamedSection, 'global', 'flowproxy');
         o.subsection.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'style': 'padding: 10px; border-bottom: 1px solid #eee; margin-bottom: 10px;' }, [
+                E('div', { 'style': 'padding: 10px; margin-bottom: 5px;' }, [
                     E('button', {
                         'class': 'cbi-button cbi-button-refresh',
                         'click': function() { location.reload(); }
                     }, _('refresh status'))
                 ]),
-                E('div', { 'class': 'nft-code-container', 'style': 'background: #1e1e1e;' }, [
+                E('div', { 'class': 'nft-code-container' }, [
                     E('code', { 'id': 'run-code' })
                 ])
             ]);
         }, this);
 
         return m.render().then(L.bind(function(node) {
-            // 在 Map 渲染完成后手动注入 HTML 高亮内容
             var genCodeEl = node.querySelector('#gen-code');
             if (genCodeEl) genCodeEl.innerHTML = this.highlightNft(genConfig);
             
