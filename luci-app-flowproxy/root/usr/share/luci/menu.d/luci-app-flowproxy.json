@@ -1,5 +1,5 @@
 {
-	"luci-app-flowproxy": {
+	"admin/services/flowproxy": {
 		"title": "FlowProxy",
 		"description": "LuCI Support for FlowProxy Traffic Diversion",
 		"index": 50,
@@ -8,7 +8,7 @@
 			"path": "flowproxy/settings"
 		}
 	},
-	"luci-app-flowproxy/settings": {
+	"admin/services/flowproxy/settings": {
 		"title": "Settings",
 		"order": 10,
 		"action": {
@@ -16,7 +16,7 @@
 			"path": "flowproxy/settings"
 		}
 	},
-	"luci-app-flowproxy/rules": {
+	"admin/services/flowproxy/rules": {
 		"title": "Rules",
 		"order": 20,
 		"action": {
@@ -24,7 +24,7 @@
 			"path": "flowproxy/rules"
 		}
 	},
-	"luci-app-flowproxy/lists": {
+	"admin/services/flowproxy/lists": {
 		"title": "Lists",
 		"order": 30,
 		"action": {
@@ -32,7 +32,7 @@
 			"path": "flowproxy/lists"
 		}
 	},
-	"luci-app-flowproxy/preview": {
+	"admin/services/flowproxy/preview": {
 		"title": "Preview",
 		"order": 40,
 		"action": {
@@ -40,7 +40,7 @@
 			"path": "flowproxy/preview"
 		}
 	},
-	"luci-app-flowproxy/logs": {
+	"admin/services/flowproxy/logs": {
 		"title": "Logs",
 		"order": 50,
 		"action": {

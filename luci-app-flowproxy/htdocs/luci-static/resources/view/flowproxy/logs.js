@@ -25,21 +25,31 @@ return L.view.extend({
         var m, s, o;
 
         m = new form.Map('flowproxy', _('flowproxy - logs'),
-            _('view and manage service runtime logs.'));
+            _('configure and view service runtime logs.'));
 
-        s = m.section(form.NamedSection, 'global', 'flowproxy', _('log control'));
+        // 日志设置区块
+        s = m.section(form.NamedSection, 'global', 'flowproxy', _('log settings'));
         
-        o = s.option(form.Button, '_refresh', _('refresh logs'));
-        o.inputstyle = 'apply';
-        o.onclick = L.bind(this.refreshLogs, this);
+        o = s.option(form.ListValue, 'log_level', _('log level'));
+        o.value('debug', 'debug'); o.value('info', 'info'); o.value('warn', 'warn'); o.value('error', 'error');
+        o.default = 'info';
 
-        o = s.option(form.Button, '_clear', _('clear logs'));
-        o.inputstyle = 'reset';
-        o.onclick = L.bind(this.clearLogs, this);
+        o = s.option(form.Value, 'log_size', _('log size (kb)'));
+        o.datatype = 'uinteger';
+        o.default = '1024';
 
+        o = s.option(form.Value, 'log_count', _('log count'));
+        o.datatype = 'uinteger';
+        o.default = '3';
+
+        // 日志查看区块
         s = m.section(form.NamedSection, '_logs', 'flowproxy', _('log output'));
         s.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
+                E('div', { 'class': 'cbi-page-actions', 'style': 'margin-bottom: 10px' }, [
+                    E('button', { 'class': 'cbi-button cbi-button-refresh', 'click': L.bind(this.refreshLogs, this) }, _('refresh logs')),
+                    E('button', { 'class': 'cbi-button cbi-button-reset', 'click': L.bind(this.clearLogs, this) }, _('clear logs'))
+                ]),
                 E('textarea', {
                     'id': 'log-content',
                     'style': 'width: 100%; height: 600px; font-family: monospace; font-size: 12px; background: #fff; border: 1px solid #ddd; padding: 10px; resize: vertical;',

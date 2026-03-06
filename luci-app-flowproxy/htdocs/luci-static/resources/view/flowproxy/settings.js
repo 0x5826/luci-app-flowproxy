@@ -78,18 +78,6 @@ return L.view.extend({
         o = s.option(form.Value, 'tproxy_mark', _('tproxy mark'));
         o.datatype = 'uinteger'; o.default = '100';
 
-        // 保留日志配置，因为它们影响后端服务行为，但不再在页面展示大块日志内容
-        s = m.section(form.NamedSection, 'global', 'flowproxy', _('log settings'));
-        o = s.option(form.ListValue, 'log_level', _('log level'));
-        o.value('debug', 'debug'); o.value('info', 'info'); o.value('warn', 'warn'); o.value('error', 'error');
-        o.default = 'info';
-
-        o = s.option(form.Value, 'log_size', _('log size (kb)'));
-        o.datatype = 'uinteger'; o.default = '1024';
-
-        o = s.option(form.Value, 'log_count', _('log count'));
-        o.datatype = 'uinteger'; o.default = '3';
-
         this.updateStatus(status);
         this.pollStatus();
 
