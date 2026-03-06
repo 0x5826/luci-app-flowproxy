@@ -20,13 +20,7 @@ return L.view.extend({
         m = new form.Map('flowproxy', _('flowproxy - rules'),
             _('Manage diversion rules, mainly used to define which traffic should bypass the proxy server.'));
 
-        // 1. 隐藏的数据绑定段 (仅用于后端数据绑定)
-        var master_s = m.section(form.NamedSection, 'global', 'flowproxy');
-        master_s.render = function() { return E('div', { 'style': 'display:none' }); };
-        master_s.option(form.Flag, 'tcp_enabled', _('TCP diversion master switch'));
-        master_s.option(form.Flag, 'udp_enabled', _('UDP diversion master switch'));
-
-        // 辅助函数：生成模版按钮组
+        // 1. 快捷模板区域
         var createTemplateButtons = L.bind(function(map, type) {
             var presets = {
                 'local': { name: 'local (dst)', type: 'custom', val: 'fib daddr type { unspec, local, anycast, multicast }' },
@@ -84,17 +78,18 @@ return L.view.extend({
                             E('div', { 'style': 'font-size: 0.8em; font-weight: normal; display: inline-flex; align-items: center; gap: 5px; color: #666;' }, [
                                 (function() {
                                     var val = uci.get('flowproxy', 'global', switch_option);
-                                    var is_enabled = (val === '1' || val == null);
+                                    var is_enabled = (val === '0') ? false : true;
                                     return E('input', {
                                         'type': 'checkbox',
                                         'style': 'width: 16px; height: 18px; cursor: pointer;',
                                         'checked': is_enabled ? 'checked' : null,
-                                        'change': ui.createHandlerFn(this, function(ev) {
-                                            uci.set('flowproxy', 'global', switch_option, ev.target.checked ? '1' : '0');
-                                            return uci.save().then(function() {
+                                        'change': function(ev) {
+                                            var checked = ev.target.checked;
+                                            uci.set('flowproxy', 'global', switch_option, checked ? '1' : '0');
+                                            uci.save().then(function() {
                                                 ui.addNotification(null, E('p', _('Master switch updated. Click "Save & Apply" at the bottom to take effect.')), 'info');
                                             });
-                                        })
+                                        }
                                     });
                                 })(),
                                 E('span', {}, _('enable protocol'))
