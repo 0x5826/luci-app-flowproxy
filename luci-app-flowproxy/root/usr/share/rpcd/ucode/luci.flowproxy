@@ -91,13 +91,13 @@ const methods = {
             let interfaces = [];
             let seen = {};
 
+            // 1. 尝试通过 ubus 获取
             try {
                 let ubus = connect();
                 if (ubus) {
                     let result = ubus.call('network.interface', 'dump', {});
                     if (result && result.interface) {
-                        for (let i in result.interface) {
-                            let iface = result.interface[i];
+                        for (let iface in result.interface) {
                             if (iface && iface.device && !seen[iface.device]) {
                                 seen[iface.device] = true;
                                 interfaces.push({ name: iface.device, mac: '' });
@@ -107,6 +107,19 @@ const methods = {
                     ubus.disconnect();
                 }
             } catch (e) {}
+
+            // 2. 兜底方案：如果 ubus 为空，尝试读取系统接口目录
+            if (length(interfaces) === 0) {
+                try {
+                    let devs = lsdir('/sys/class/net');
+                    for (let dev in devs) {
+                        if (dev != '.' && dev != '..' && dev != 'lo' && !seen[dev]) {
+                            seen[dev] = true;
+                            interfaces.push({ name: dev, mac: '' });
+                        }
+                    }
+                } catch (e) {}
+            }
 
             return interfaces;
         }
