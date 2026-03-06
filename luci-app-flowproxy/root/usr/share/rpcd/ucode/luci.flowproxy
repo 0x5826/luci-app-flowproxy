@@ -132,31 +132,35 @@ const methods = {
         }
     },
 
-    // 新增：获取运行时的内核真实状态 (Requirement 2)
     get_runtime_config: {
         call: function() {
             let mark = uci_get_config('global', 'tproxy_mark', '100');
+            let res_file = '/tmp/flowproxy_runtime.tmp';
             
-            // 抓取 nftables 实时规则
-            let nft_out = readfile(popen('nft list table inet ' + NFT_TABLE + ' 2>/dev/null'));
+            // 使用 system 组合命令将所有诊断信息输出到一个临时文件
+            // 这种方式规避了 popen 在某些 ucode 版本下的读取 API 不兼容问题
+            let cmd = '( ' +
+                'echo "--- [ nftables live rules ] ---"; ' +
+                'nft list table inet ' + NFT_TABLE + ' 2>/dev/null || echo "(table not found)"; ' +
+                'echo ""; ' +
+                'echo "--- [ ip rule list ] ---"; ' +
+                'ip rule show 2>/dev/null; ' +
+                'echo ""; ' +
+                'echo "--- [ ip route table ' + mark + ' ] ---"; ' +
+                'ip route show table ' + mark + ' 2>/dev/null || echo "(table empty)"; ' +
+                ') > ' + res_file;
             
-            // 抓取 ip rule 策略
-            let rule_out = readfile(popen('ip rule show 2>/dev/null'));
-            
-            // 抓取特定路由表内容
-            let route_out = readfile(popen('ip route show table ' + mark + ' 2>/dev/null'));
+            system(cmd);
             
             let result = "";
-            if (nft_out) {
-                result += "--- [ nftables live rules ] ---\n" + nft_out + "\n\n";
-            } else {
-                result += "--- [ nftables live rules ] ---\n(table not found in kernel)\n\n";
-            }
+            try {
+                if (access(res_file, 'r')) {
+                    result = readfile(res_file);
+                    system('rm -f ' + res_file);
+                }
+            } catch (e) {}
             
-            result += "--- [ ip rule list ] ---\n" + (rule_out || "(none)") + "\n\n";
-            result += "--- [ ip route table " + mark + " ] ---\n" + (route_out || "(none)");
-            
-            return { runtime: trim(result) };
+            return { runtime: trim(result || "(failed to capture runtime config)") };
         }
     }
 };
