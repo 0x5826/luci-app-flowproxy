@@ -12,6 +12,13 @@ return L.view.extend({
     render: function() {
         var m, s, o;
 
+        // 获取所有定义的 nftset 名称
+        var nftsets = uci.sections('flowproxy', 'nftset').map(function(s) {
+            return '@' + s['.name'];
+        });
+        // 加入特殊的全局变量
+        nftsets.push('@proxy_server_ip');
+
         m = new form.Map('flowproxy', _('flowproxy - rules'),
             _('define nftables rules. matches with "return" action will bypass the proxy.'));
 
@@ -40,8 +47,6 @@ return L.view.extend({
                                 uci.set('flowproxy', sid, 'content', presets[k].content);
                                 uci.set('flowproxy', sid, 'action', 'return');
                                 uci.set('flowproxy', sid, 'counter', '0');
-                                
-                                // 核心修复：先保存到 UCI 缓存，再刷新页面确保渲染引擎读取新数据
                                 uci.save();
                                 location.reload();
                             }
@@ -58,7 +63,6 @@ return L.view.extend({
         s.sortable = true;
         s.nodescription = true;
 
-        // 辅助：处理手动点击“添加”按钮时的默认值
         s.handleAdd = function(ev) {
             var sid = uci.add('flowproxy', 'rule');
             uci.set('flowproxy', sid, 'name', 'new rule');
@@ -66,7 +70,6 @@ return L.view.extend({
             uci.set('flowproxy', sid, 'protocol', 'both');
             uci.set('flowproxy', sid, 'action', 'return');
             uci.set('flowproxy', sid, 'counter', '0');
-            
             uci.save();
             location.reload();
         };
@@ -84,9 +87,50 @@ return L.view.extend({
         o.value('udp', 'udp');
         o.width = '10%';
 
+        // 规则内容字段：集成 @ 名单建议
         o = s.option(form.Value, 'content', _('content'));
         o.rmempty = false;
         o.width = '45%';
+        
+        // 使用 datalist 实现输入建议
+        o.renderWidget = function(section_id, option_id, formatvalue) {
+            var node = form.Value.prototype.renderWidget.apply(this, [section_id, option_id, formatvalue]);
+            var input = node.querySelector('input');
+            
+            // 创建 datalist 节点
+            var dlId = 'nftsets-list-' + section_id;
+            var dl = E('datalist', { id: dlId }, nftsets.map(function(s) {
+                return E('option', { value: s });
+            }));
+            
+            input.setAttribute('list', dlId);
+            input.setAttribute('autocomplete', 'off');
+            node.appendChild(dl);
+
+            // 监听输入，当输入 @ 时弹出（浏览器默认行为，如果前缀匹配的话）
+            // 额外辅助：在说明文字中提供可点击的标签
+            return node;
+        };
+
+        o.description = E('div', { 'style': 'font-size: 0.9em; margin-top: 4px;' }, [
+            _('Available sets (click to insert): '),
+            E('span', { 'style': 'display: inline-flex; flex-wrap: wrap; gap: 4px;' }, nftsets.map(function(s) {
+                return E('a', {
+                    'href': '#',
+                    'style': 'background: #f0f0f0; padding: 1px 4px; border-radius: 3px; border: 1px solid #ccc; text-decoration: none; color: #333;',
+                    'click': function(ev) {
+                        ev.preventDefault();
+                        var input = ev.target.closest('.cbi-value-field').querySelector('input');
+                        var start = input.selectionStart;
+                        var val = input.value;
+                        input.value = val.substring(0, start) + s + val.substring(input.selectionEnd);
+                        input.dispatchEvent(new CustomEvent('change', { bubbles: true }));
+                        input.focus();
+                        input.setSelectionRange(start + s.length, start + s.length);
+                    }
+                }, s);
+            }))
+        ]);
 
         o = s.option(form.Flag, 'counter', _('counter'));
         o.width = '5%';
