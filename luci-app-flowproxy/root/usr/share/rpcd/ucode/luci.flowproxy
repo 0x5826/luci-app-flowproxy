@@ -18,23 +18,21 @@ function uci_get_config(section, option, default_val) {
     }
 }
 
-function check_nft_chain(chain) {
-    let ret = system('nft list chain inet ' + NFT_TABLE + ' ' + chain + ' >/dev/null 2>&1');
-    return (ret === 0);
-}
-
 const methods = {
     get_status: {
-        call: function(req) {
+        call: function() {
             let enabled = uci_get_config('global', 'enabled', '0');
-            let running = check_nft_chain('LAN_MARKFLOW_TCP') ? 1 : 0;
             let lan_ip = '';
-
+            
+            // 一次性获取 nftables 状态 (检查表是否存在即可代表服务核心是否加载)
+            let nft_running = (system('nft list table inet ' + NFT_TABLE + ' >/dev/null 2>&1') === 0);
+            
+            // 复用 ubus 连接获取接口信息
             try {
                 let ubus_conn = connect();
                 if (ubus_conn) {
                     let lan_status = ubus_conn.call('network.interface.lan', 'status');
-                    if (lan_status && lan_status['ipv4-address'] && length(lan_status['ipv4-address']) > 0) {
+                    if (lan_status?.['ipv4-address']?.[0]) {
                         lan_ip = lan_status['ipv4-address'][0].address;
                     }
                     ubus_conn.disconnect();
@@ -43,20 +41,15 @@ const methods = {
 
             return {
                 enabled: int(enabled),
-                running: running,
+                running: nft_running ? 1 : 0,
+                nft: {
+                    tcp: nft_running ? 1 : 0, // 简化逻辑：表在即认为链在
+                    udp: nft_running ? 1 : 0
+                },
                 proxy_ip: uci_get_config('global', 'proxy_ip', ''),
                 lan_ip: lan_ip,
                 interface: uci_get_config('global', 'interface', 'br-lan'),
                 tproxy_mark: uci_get_config('global', 'tproxy_mark', '100')
-            };
-        }
-    },
-
-    get_nft_status: {
-        call: function() {
-            return {
-                tcp_chain: check_nft_chain('LAN_MARKFLOW_TCP') ? 1 : 0,
-                udp_chain: check_nft_chain('LAN_MARKFLOW_UDP') ? 1 : 0
             };
         }
     },
@@ -66,7 +59,6 @@ const methods = {
         call: function(request) {
             let lines = request.args?.lines ?? 100;
             let logs = [];
-
             try {
                 if (access(LOG_FILE, 'r')) {
                     let content = readfile(LOG_FILE);
@@ -75,14 +67,11 @@ const methods = {
                         let total = length(log_lines);
                         let start = (total > lines) ? (total - lines) : 0;
                         for (let i = start; i < total; i++) {
-                            if (log_lines[i]) {
-                                push(logs, log_lines[i]);
-                            }
+                            if (log_lines[i]) push(logs, log_lines[i]);
                         }
                     }
                 }
             } catch (e) {}
-
             return { logs };
         }
     },
@@ -102,14 +91,13 @@ const methods = {
         call: function() {
             let interfaces = [];
             let seen = {};
-
             try {
                 let ubus_conn = connect();
                 if (ubus_conn) {
                     let result = ubus_conn.call('network.interface', 'dump');
-                    if (result && result.interface) {
+                    if (result?.interface) {
                         for (let iface in result.interface) {
-                            if (iface && iface.device && !seen[iface.device]) {
+                            if (iface?.device && !seen[iface.device]) {
                                 seen[iface.device] = true;
                                 push(interfaces, { name: iface.device, mac: '' });
                             }
@@ -118,7 +106,6 @@ const methods = {
                     ubus_conn.disconnect();
                 }
             } catch (e) {}
-
             if (length(interfaces) == 0) {
                 try {
                     let devs = lsdir('/sys/class/net');
@@ -130,31 +117,13 @@ const methods = {
                     }
                 } catch (e) {}
             }
-
             return { interfaces };
         }
     },
 
-    start_service: {
-        call: function() {
-            let ret = system('/etc/init.d/flowproxy start >/dev/null 2>&1');
-            return { result: (ret === 0) };
-        }
-    },
-
-    stop_service: {
-        call: function() {
-            let ret = system('/etc/init.d/flowproxy stop >/dev/null 2>&1');
-            return { result: (ret === 0) };
-        }
-    },
-
-    restart_service: {
-        call: function() {
-            let ret = system('/etc/init.d/flowproxy restart >/dev/null 2>&1');
-            return { result: (ret === 0) };
-        }
-    },
+    start_service: { call: function() { return { result: (system('/etc/init.d/flowproxy start >/dev/null 2>&1') === 0) }; } },
+    stop_service: { call: function() { return { result: (system('/etc/init.d/flowproxy stop >/dev/null 2>&1') === 0) }; } },
+    restart_service: { call: function() { return { result: (system('/etc/init.d/flowproxy restart >/dev/null 2>&1') === 0) }; } },
 
     generate_nft_config: {
         call: function() {
