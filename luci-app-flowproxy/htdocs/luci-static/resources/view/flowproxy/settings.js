@@ -18,20 +18,15 @@ var callGetInterfaces = rpc.declare({
 });
 
 return L.view.extend({
-    // 优化点：不再在 load 中阻塞等待耗时的接口列表获取
+    // 极致优化：只加载配置，不等待状态接口，确保页面瞬间打开
     load: function() {
-        return Promise.all([
-            uci.load('flowproxy').catch(function() { return {}; }),
-            callGetStatus().catch(function() { return {}; })
-        ]);
+        return uci.load('flowproxy').catch(function() { return {}; });
     },
 
     render: function(data) {
-        var uciData = data[0] || {};
-        var status = data[1] || {};
         var m, s, o;
 
-        m = new form.Map('flowproxy', _('flowproxy'),
+        m = new form.Map('flowproxy', _('代理分流'),
             _('traffic diversion based on nftables rules. the service will automatically start/stop when you click "save & apply".'));
 
         s = m.section(form.NamedSection, '_status', 'flowproxy', _('service status'));
@@ -40,7 +35,7 @@ return L.view.extend({
                 E('div', { 'class': 'table' }, [
                     E('div', { 'class': 'tr' }, [
                         E('div', { 'class': 'td left', 'style': 'width: 30%; font-weight: bold;' }, _('current status')),
-                        E('div', { 'class': 'td left', 'id': 'service-status' }, _('loading...'))
+                        E('div', { 'class': 'td left', 'id': 'service-status' }, E('em', { 'class': 'spinning' }, _('checking...')))
                     ]),
                     E('div', { 'class': 'tr', 'id': 'nft-status-row', 'style': 'display: none;' }, [
                         E('div', { 'class': 'td left' }, _('nftables chains')),
@@ -61,37 +56,40 @@ return L.view.extend({
 
         o = s.option(form.Value, 'proxy_ip', _('proxy ip address'));
         o.datatype = 'ip4addr'; o.rmempty = false;
-        var suggestedIp = '';
-        if (status.lan_ip) {
-            var parts = status.lan_ip.split('.');
-            if (parts.length === 4) {
-                parts[3] = parseInt(parts[3]) + 1;
-                suggestedIp = parts.join('.');
-            }
-        }
-        o.default = suggestedIp || '192.168.1.100'; o.placeholder = suggestedIp;
+        o.default = '192.168.1.100';
 
-        // 优化点：接口列表初始为空，稍后异步填充
         o = s.option(form.ListValue, 'interface', _('network interface'));
-        o.id = 'interface-list-opt';
         o.value('br-lan', 'br-lan');
         o.default = 'br-lan';
 
         o = s.option(form.Value, 'tproxy_mark', _('tproxy mark'));
         o.datatype = 'uinteger'; o.default = '100';
 
-        // 异步填充接口列表
+        // 异步任务 1：获取真实状态并更新 UI
+        callGetStatus().then(L.bind(function(status) {
+            this.updateStatus(status);
+            // 动态设置建议 IP
+            if (status.lan_ip) {
+                var parts = status.lan_ip.split('.');
+                if (parts.length === 4) {
+                    parts[3] = parseInt(parts[3]) + 1;
+                    var suggestedIp = parts.join('.');
+                    var ipOpt = m.lookupOption('proxy_ip', 'global')[0];
+                    if (ipOpt) ipOpt.placeholder = suggestedIp;
+                }
+            }
+        }, this));
+
+        // 异步任务 2：填充接口列表
         callGetInterfaces().then(L.bind(function(data) {
             var ifaceOpt = m.lookupOption('interface', 'global')[0];
             if (ifaceOpt && data && Array.isArray(data.interfaces)) {
                 data.interfaces.forEach(function(iface) {
                     ifaceOpt.value(iface.name, iface.name + (iface.mac ? ' (' + iface.mac + ')' : ''));
                 });
-                // 强制触发一次重绘或 UI 更新（如果需要的话，ListValue 通常会自动刷新建议值）
             }
         }, this));
 
-        this.updateStatus(status);
         this.pollStatus();
 
         return m.render();

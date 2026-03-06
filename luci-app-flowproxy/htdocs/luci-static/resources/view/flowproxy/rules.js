@@ -12,7 +12,6 @@ return L.view.extend({
     render: function() {
         var m, s, o;
 
-        // 预取 Set 名用于补全建议
         var nftsets = uci.sections('flowproxy', 'nftset').map(function(s) {
             return '@' + s['.name'];
         });
@@ -122,13 +121,14 @@ return L.view.extend({
             return node;
         };
 
+        // 优化点：手动添加按钮不再生成空白规则，而是预填常用模版
         s.handleAdd = function(ev) {
             var sid = uci.add('flowproxy', 'rule');
-            uci.set('flowproxy', sid, 'name', 'new rule');
+            uci.set('flowproxy', sid, 'name', 'skip private (dst)');
             uci.set('flowproxy', sid, 'enabled', '1');
             uci.set('flowproxy', sid, 'protocol', 'both');
             uci.set('flowproxy', sid, 'match_type', 'dst_ip');
-            uci.set('flowproxy', sid, 'match_value', '');
+            uci.set('flowproxy', sid, 'match_value', '@private_dst_ip_v4');
             uci.set('flowproxy', sid, 'action', 'return');
             uci.set('flowproxy', sid, 'counter', '0');
             return uci.save().then(function() { location.reload(); });
