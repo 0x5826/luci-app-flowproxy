@@ -108,6 +108,12 @@ msgstr "计数器"
 msgid "action"
 msgstr "动作"
 
+msgid "TCP diversion master switch"
+msgstr "TCP 分流总开关"
+
+msgid "UDP diversion master switch"
+msgstr "UDP 分流总开关"
+
 msgid "master switch"
 msgstr "总开关"
 

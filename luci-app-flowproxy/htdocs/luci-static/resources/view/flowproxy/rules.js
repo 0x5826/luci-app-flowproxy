@@ -60,10 +60,10 @@ return L.view.extend({
             return container;
         }, this);
 
-        // 2. 总开关承载（隐藏渲染）
+        // 2. 总开关承载（隐藏渲染，仅用于后端数据绑定）
         var master_s = m.section(form.NamedSection, 'global', 'flowproxy');
-        master_s.option(form.Flag, 'tcp_enabled', _('enable TCP matching rules'));
-        master_s.option(form.Flag, 'udp_enabled', _('enable UDP matching rules'));
+        master_s.option(form.Flag, 'tcp_enabled', _('TCP diversion master switch'));
+        master_s.option(form.Flag, 'udp_enabled', _('UDP diversion master switch'));
 
         // 辅助函数：创建标题带手动开关的规则表格
         var renderTable = L.bind(function(map, type, title, switch_option) {
