@@ -7,54 +7,47 @@ config flowproxy 'global'
 	option log_size '1024'
 	option log_count '3'
 
-# TCP 规则模版（后台参考，不在界面显示）
-config template 'tcp_template'
-	option name 'TCP规则模版'
-	option protocol 'tcp'
-	option priority '100'
-	option use_no_proxy_src_mac '1'
-	option use_no_proxy_src_ip '1'
-	option use_no_proxy_dst_ip '1'
-	option use_private_dst_ip '1'
-	option use_chnroute_dst_ip '1'
-	option use_no_proxy_ports '1'
-
-# UDP 规则模版（后台参考，不在界面显示）
-config template 'udp_template'
-	option name 'UDP规则模版'
-	option protocol 'udp'
-	option priority '100'
-	option use_no_proxy_src_mac '1'
-	option use_no_proxy_src_ip '1'
-	option use_no_proxy_dst_ip '1'
-	option use_private_dst_ip '1'
-	option use_chnroute_dst_ip '1'
-	option use_no_proxy_ports '1'
-
-# 用户规则（可自由增删改）
+# 默认规则：跳过本地/广播/组播
 config rule
-	option name 'TCP规则'
+	option name 'Skip Local/Multicast'
+	option protocol 'both'
+	option enabled '1'
+	option content 'meta nfproto ipv4 ip daddr type { local, anycast, multicast } return'
+
+# 默认规则：跳过代理服务器自身
+config rule
+	option name 'Skip Proxy Server'
+	option protocol 'both'
+	option enabled '1'
+	option content 'ip saddr @proxy_server_ip return'
+
+# 默认规则：跳过不代理的源MAC
+config rule
+	option name 'Skip Source MAC'
+	option protocol 'both'
+	option enabled '1'
+	option content 'ether saddr @no_proxy_src_mac return'
+
+# 默认规则：跳过私有地址
+config rule
+	option name 'Skip Private IP'
+	option protocol 'both'
+	option enabled '1'
+	option content 'ip daddr @private_dst_ip_v4 return'
+
+# 默认规则：跳过中国IP
+config rule
+	option name 'Skip China IP'
+	option protocol 'both'
+	option enabled '1'
+	option content 'ip daddr @chnroute_dst_ip_v4 return'
+
+# 默认规则：跳过指定TCP端口
+config rule
+	option name 'Skip TCP Ports'
 	option protocol 'tcp'
 	option enabled '1'
-	option priority '100'
-	option use_no_proxy_src_mac '1'
-	option use_no_proxy_src_ip '1'
-	option use_no_proxy_dst_ip '1'
-	option use_private_dst_ip '1'
-	option use_chnroute_dst_ip '1'
-	option use_no_proxy_ports '1'
-
-config rule
-	option name 'UDP规则'
-	option protocol 'udp'
-	option enabled '1'
-	option priority '100'
-	option use_no_proxy_src_mac '1'
-	option use_no_proxy_src_ip '1'
-	option use_no_proxy_dst_ip '1'
-	option use_private_dst_ip '1'
-	option use_chnroute_dst_ip '1'
-	option use_no_proxy_ports '1'
+	option content 'tcp dport @no_proxy_dst_tcp_ports return'
 
 # nftables set 配置
 config nftset 'no_proxy_src_mac'

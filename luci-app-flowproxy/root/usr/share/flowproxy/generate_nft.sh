@@ -39,6 +39,38 @@ INTERFACE=$(get_config "global" "interface" "br-lan")
 TPROXY_MARK=$(get_config "global" "tproxy_mark" "100")
 PRIVATE_IPS=$(get_private_ips)
 
+# Initialize temporary rule files
+TCP_RULES="/tmp/flowproxy_tcp_rules.tmp"
+UDP_RULES="/tmp/flowproxy_udp_rules.tmp"
+echo "" > "$TCP_RULES"
+echo "" > "$UDP_RULES"
+
+generate_user_rule() {
+    local section="$1"
+    local name enabled protocol content
+    config_get name "$section" name
+    config_get_bool enabled "$section" enabled 1
+    config_get protocol "$section" protocol "both"
+    config_get content "$section" content ""
+
+    [ "$enabled" = "0" ] && return
+    [ -z "$content" ] && return
+
+    # Replace @proxy_server_ip with actual IP if found in content
+    # (Optional: user can also just write the IP directly, but this is a helper)
+    content=$(echo "$content" | sed "s/@proxy_server_ip/$PROXY_IP/g")
+
+    if [ "$protocol" = "tcp" ] || [ "$protocol" = "both" ]; then
+        echo "        $content" >> "$TCP_RULES"
+    fi
+    if [ "$protocol" = "udp" ] || [ "$protocol" = "both" ]; then
+        echo "        $content" >> "$UDP_RULES"
+    fi
+}
+
+config_load "$CONFIG"
+config_foreach generate_user_rule "rule"
+
 cat > "$OUTPUT_FILE" << EOF
 #!/usr/sbin/nft -f
 
@@ -87,67 +119,23 @@ table $NFT_TABLE {
     # Chain for marking TCP traffic
     chain LAN_MARKFLOW_TCP {
         type filter hook prerouting priority mangle; policy accept;
-
-        # Skip if destination is local/anycast/multicast
-        meta nfproto ipv4 ip daddr type { local, anycast, multicast } return
-
-        # Skip if source MAC is in no_proxy list
-        ether saddr @no_proxy_src_mac return
-
-        # Skip if source IP is proxy server
-        ip saddr $PROXY_IP return
-
-        # Skip if source IP is in no_proxy list
-        ip saddr @no_proxy_src_ip_v4 return
-
-        # Skip if destination IP is in no_proxy list
-        ip daddr @no_proxy_dst_ip_v4 return
-
-        # Skip if destination IP is private
-        ip daddr @private_dst_ip_v4 return
-
-        # Skip if destination IP is China IP
-        ip daddr @chnroute_dst_ip_v4 return
-
-        # Skip if destination port is in no_proxy list
-        tcp dport @no_proxy_dst_tcp_ports return
-
-        # Mark remaining traffic for proxy
+$(cat "$TCP_RULES")
+        # Default action: Mark remaining traffic for proxy
         meta mark set $TPROXY_MARK
     }
 
     # Chain for marking UDP traffic
     chain LAN_MARKFLOW_UDP {
         type filter hook prerouting priority mangle; policy accept;
-
-        # Skip if destination is local/anycast/multicast
-        meta nfproto ipv4 ip daddr type { local, anycast, multicast } return
-
-        # Skip if source MAC is in no_proxy list
-        ether saddr @no_proxy_src_mac return
-
-        # Skip if source IP is proxy server
-        ip saddr $PROXY_IP return
-
-        # Skip if source IP is in no_proxy list
-        ip saddr @no_proxy_src_ip_v4 return
-
-        # Skip if destination IP is in no_proxy list
-        ip daddr @no_proxy_dst_ip_v4 return
-
-        # Skip if destination IP is private
-        ip daddr @private_dst_ip_v4 return
-
-        # Skip if destination IP is China IP
-        ip daddr @chnroute_dst_ip_v4 return
-
-        # Skip if destination port is in no_proxy list
-        udp dport @no_proxy_dst_udp_ports return
-
-        # Mark remaining traffic for proxy
+$(cat "$UDP_RULES")
+        # Default action: Mark remaining traffic for proxy
         meta mark set $TPROXY_MARK
     }
 }
 EOF
 
+# Clean up
+rm -f "$TCP_RULES" "$UDP_RULES"
+
+# Output for verification/debugging
 cat "$OUTPUT_FILE"
