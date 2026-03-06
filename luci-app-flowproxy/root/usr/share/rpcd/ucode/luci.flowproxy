@@ -133,7 +133,8 @@ const methods = {
 
     generate_nft_config: {
         call: function() {
-            system('/usr/share/flowproxy/generate_nft.sh >/dev/null 2>&1');
+            // 增加环境变量，让 uci 命令能读取到 LuCI 会话中的临时修改
+            system('UCI_CONFIG_DIR=/tmp/.uci /usr/share/flowproxy/generate_nft.sh >/dev/null 2>&1');
             try {
                 if (access('/tmp/flowproxy_nft.conf', 'r')) {
                     let content = readfile('/tmp/flowproxy_nft.conf');
