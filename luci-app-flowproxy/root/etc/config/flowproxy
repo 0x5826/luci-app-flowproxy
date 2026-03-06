@@ -12,42 +12,54 @@ config rule
 	option name 'Skip Local/Multicast'
 	option protocol 'both'
 	option enabled '1'
-	option content 'meta nfproto ipv4 ip daddr type { local, anycast, multicast } return'
+	option content 'meta nfproto ipv4 ip daddr type { local, anycast, multicast }'
+	option action 'return'
+	option counter '0'
 
 # 默认规则：跳过代理服务器自身
 config rule
 	option name 'Skip Proxy Server'
 	option protocol 'both'
 	option enabled '1'
-	option content 'ip saddr @proxy_server_ip return'
+	option content 'ip saddr @proxy_server_ip'
+	option action 'return'
+	option counter '0'
 
 # 默认规则：跳过不代理的源MAC
 config rule
 	option name 'Skip Source MAC'
 	option protocol 'both'
 	option enabled '1'
-	option content 'ether saddr @no_proxy_src_mac return'
+	option content 'ether saddr @no_proxy_src_mac'
+	option action 'return'
+	option counter '0'
 
 # 默认规则：跳过私有地址
 config rule
 	option name 'Skip Private IP'
 	option protocol 'both'
 	option enabled '1'
-	option content 'ip daddr @private_dst_ip_v4 return'
+	option content 'ip daddr @private_dst_ip_v4'
+	option action 'return'
+	option counter '0'
 
 # 默认规则：跳过中国IP
 config rule
 	option name 'Skip China IP'
 	option protocol 'both'
 	option enabled '1'
-	option content 'ip daddr @chnroute_dst_ip_v4 return'
+	option content 'ip daddr @chnroute_dst_ip_v4'
+	option action 'return'
+	option counter '0'
 
 # 默认规则：跳过指定TCP端口
 config rule
 	option name 'Skip TCP Ports'
 	option protocol 'tcp'
 	option enabled '1'
-	option content 'tcp dport @no_proxy_dst_tcp_ports return'
+	option content 'tcp dport @no_proxy_dst_tcp_ports'
+	option action 'return'
+	option counter '0'
 
 # nftables set 配置
 config nftset 'no_proxy_src_mac'

@@ -78,21 +78,28 @@ echo "" > "$UDP_RULES_TMP"
 
 generate_user_rule() {
     local section="$1"
-    local enabled protocol content
+    local enabled protocol content action counter
     config_get_bool enabled "$section" enabled 1
     config_get protocol "$section" protocol "both"
     config_get content "$section" content ""
+    config_get action "$section" action "return"
+    config_get_bool counter "$section" counter 0
 
     [ "$enabled" -eq 0 ] || [ -z "$content" ] && return
 
+    # 构建规则行：匹配条件 + [计数器] + 动作
+    local rule_line="$content"
+    [ "$counter" -eq 1 ] && rule_line="$rule_line counter"
+    rule_line="$rule_line $action"
+
     # 替换变量
-    content=$(echo "$content" | sed "s/@proxy_server_ip/$PROXY_IP/g")
+    rule_line=$(echo "$rule_line" | sed "s/@proxy_server_ip/$PROXY_IP/g")
 
     if [ "$protocol" = "tcp" ] || [ "$protocol" = "both" ]; then
-        echo "        $content" >> "$TCP_RULES_TMP"
+        echo "        $rule_line" >> "$TCP_RULES_TMP"
     fi
     if [ "$protocol" = "udp" ] || [ "$protocol" = "both" ]; then
-        echo "        $content" >> "$UDP_RULES_TMP"
+        echo "        $rule_line" >> "$UDP_RULES_TMP"
     fi
 }
 
@@ -122,7 +129,7 @@ table $NFT_TABLE {
 
     set no_proxy_dst_ip_v4 {
         type ipv4_addr
-        elements = { $DST_IP_ELEMS }
+        elements = { $SRC_IP_ELEMS }
         comment "不代理的目标IPv4地址"
     }
 
