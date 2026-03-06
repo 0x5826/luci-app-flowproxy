@@ -1,44 +1,51 @@
 {
-	"admin/services/flowproxy": {
+	"luci-app-flowproxy": {
 		"title": "FlowProxy",
-		"action": {
-			"type": "alias",
-			"path": "admin/services/flowproxy/settings"
-		},
-		"depends": {
-			"acl": [ "luci-app-flowproxy" ]
-		}
-	},
-	"admin/services/flowproxy/settings": {
-		"title": "Settings",
-		"order": 1,
+		"description": "LuCI Support for FlowProxy Traffic Diversion",
+		"index": 50,
 		"action": {
 			"type": "view",
 			"path": "flowproxy/settings"
 		}
 	},
-	"admin/services/flowproxy/rules": {
+	"luci-app-flowproxy/settings": {
+		"title": "Settings",
+		"order": 10,
+		"action": {
+			"type": "view",
+			"path": "flowproxy/settings"
+		}
+	},
+	"luci-app-flowproxy/rules": {
 		"title": "Rules",
-		"order": 2,
+		"order": 20,
 		"action": {
 			"type": "view",
 			"path": "flowproxy/rules"
 		}
 	},
-	"admin/services/flowproxy/lists": {
+	"luci-app-flowproxy/lists": {
 		"title": "Lists",
-		"order": 3,
+		"order": 30,
 		"action": {
 			"type": "view",
 			"path": "flowproxy/lists"
 		}
 	},
-	"admin/services/flowproxy/preview": {
+	"luci-app-flowproxy/preview": {
 		"title": "Preview",
-		"order": 4,
+		"order": 40,
 		"action": {
 			"type": "view",
 			"path": "flowproxy/preview"
+		}
+	},
+	"luci-app-flowproxy/logs": {
+		"title": "Logs",
+		"order": 50,
+		"action": {
+			"type": "view",
+			"path": "flowproxy/logs"
 		}
 	}
 }

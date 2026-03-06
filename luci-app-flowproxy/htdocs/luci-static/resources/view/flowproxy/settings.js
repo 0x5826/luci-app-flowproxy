@@ -12,17 +12,6 @@ var callGetStatus = rpc.declare({
     method: 'get_status'
 });
 
-var callGetLogs = rpc.declare({
-    object: 'luci.flowproxy',
-    method: 'get_logs',
-    params: ['lines']
-});
-
-var callClearLogs = rpc.declare({
-    object: 'luci.flowproxy',
-    method: 'clear_logs'
-});
-
 var callGetInterfaces = rpc.declare({
     object: 'luci.flowproxy',
     method: 'get_interfaces'
@@ -45,7 +34,6 @@ return L.view.extend({
         m = new form.Map('flowproxy', _('flowproxy'),
             _('traffic diversion based on nftables rules. the service will automatically start/stop when you click "save & apply".'));
 
-        // 状态显示区域 (仅展示，无按钮)
         s = m.section(form.NamedSection, '_status', 'flowproxy', _('service status'));
         s.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
@@ -66,16 +54,13 @@ return L.view.extend({
             ]);
         }, this);
 
-        // 基本设置
         s = m.section(form.NamedSection, 'global', 'flowproxy', _('basic settings'));
 
         o = s.option(form.Flag, 'enabled', _('enable flowproxy'));
-        o.rmempty = false;
-        o.default = '0';
+        o.rmempty = false; o.default = '0';
 
         o = s.option(form.Value, 'proxy_ip', _('proxy ip address'));
-        o.datatype = 'ip4addr';
-        o.rmempty = false;
+        o.datatype = 'ip4addr'; o.rmempty = false;
         var suggestedIp = '';
         if (status.lan_ip) {
             var parts = status.lan_ip.split('.');
@@ -84,52 +69,31 @@ return L.view.extend({
                 suggestedIp = parts.join('.');
             }
         }
-        o.default = suggestedIp || '192.168.1.100';
-        o.placeholder = suggestedIp;
+        o.default = suggestedIp || '192.168.1.100'; o.placeholder = suggestedIp;
 
         o = s.option(form.ListValue, 'interface', _('network interface'));
-        interfaces.forEach(function(iface) {
-            o.value(iface.name, iface.name + (iface.mac ? ' (' + iface.mac + ')' : ''));
-        });
+        interfaces.forEach(function(iface) { o.value(iface.name, iface.name + (iface.mac ? ' (' + iface.mac + ')' : '')); });
         o.default = 'br-lan';
 
         o = s.option(form.Value, 'tproxy_mark', _('tproxy mark'));
-        o.datatype = 'uinteger';
-        o.default = '100';
+        o.datatype = 'uinteger'; o.default = '100';
 
-        // 日志设置
+        // 保留日志配置，因为它们影响后端服务行为，但不再在页面展示大块日志内容
         s = m.section(form.NamedSection, 'global', 'flowproxy', _('log settings'));
         o = s.option(form.ListValue, 'log_level', _('log level'));
         o.value('debug', 'debug'); o.value('info', 'info'); o.value('warn', 'warn'); o.value('error', 'error');
         o.default = 'info';
 
         o = s.option(form.Value, 'log_size', _('log size (kb)'));
-        o.datatype = 'uinteger';
-        o.default = '1024';
+        o.datatype = 'uinteger'; o.default = '1024';
 
         o = s.option(form.Value, 'log_count', _('log count'));
-        o.datatype = 'uinteger';
-        o.default = '3';
-
-        // 日志查看
-        s = m.section(form.NamedSection, '_logs', 'flowproxy', _('runtime logs'));
-        s.render = L.bind(function() {
-            return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'class': 'cbi-page-actions', 'style': 'margin-bottom: 10px' }, [
-                    E('button', { 'class': 'cbi-button cbi-button-refresh', 'click': L.bind(this.refreshLogs, this) }, _('refresh')),
-                    E('button', { 'class': 'cbi-button cbi-button-reset', 'click': L.bind(this.clearLogs, this) }, _('clear logs'))
-                ]),
-                E('textarea', { 'id': 'log-content', 'style': 'width: 100%; height: 300px; font-family: monospace; font-size: 12px; resize: vertical;', 'readonly': true }, _('loading logs...'))
-            ]);
-        }, this);
+        o.datatype = 'uinteger'; o.default = '3';
 
         this.updateStatus(status);
         this.pollStatus();
 
-        return m.render().then(L.bind(function(node) {
-            this.refreshLogs();
-            return node;
-        }, this));
+        return m.render();
     },
 
     updateStatus: function(status) {
@@ -163,22 +127,5 @@ return L.view.extend({
         poll.add(L.bind(function() {
             return callGetStatus().then(L.bind(this.updateStatus, this));
         }, this), 5);
-    },
-
-    refreshLogs: function() {
-        callGetLogs(200).then(L.bind(function(data) {
-            var logEl = document.getElementById('log-content');
-            var logs = (data && Array.isArray(data.logs)) ? data.logs : [];
-            if (logEl) {
-                logEl.value = logs.length > 0 ? logs.join('\n') : _('no logs available');
-                if (logs.length > 0) logEl.scrollTop = logEl.scrollHeight;
-            }
-        }, this));
-    },
-
-    clearLogs: function() {
-        if (confirm(_('clear all logs?'))) {
-            callClearLogs().then(L.bind(this.refreshLogs, this));
-        }
     }
 });
