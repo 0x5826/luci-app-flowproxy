@@ -96,7 +96,7 @@ return L.view.extend({
                                         })
                                     });
                                 })(),
-                                E('span', {}, _('master switch'))
+                                E('span', {}, _('enable protocol'))
                             ])
                         ]);
                         

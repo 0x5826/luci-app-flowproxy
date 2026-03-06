@@ -117,8 +117,8 @@ msgstr "TCP 分流总开关"
 msgid "UDP diversion master switch"
 msgstr "UDP 分流总开关"
 
-msgid "master switch"
-msgstr "总开关"
+msgid "enable protocol"
+msgstr "启用协议"
 
 msgid "Click to add to BOTH TCP and UDP lists"
 msgstr "点击以同时添加到 TCP 和 UDP 规则列表"
