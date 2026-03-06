@@ -5,7 +5,7 @@ msgstr ""
 "Language: zh_Hans\n"
 
 msgid "FlowProxy"
-msgstr "FlowProxy"
+msgstr "代理分流"
 
 msgid "traffic diversion based on nftables rules. the service will automatically start/stop when you click \"save & apply\"."
 msgstr "基于 nftables 规则的流量分流。点击“保存并应用”后，服务将自动启动/停止。"
