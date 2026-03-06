@@ -10,6 +10,7 @@ UCI_CONFIG="flowproxy"
 LOG_FILE="/var/log/flowproxy.log"
 NFT_CONF="/tmp/flowproxy_nft.conf"
 GENERATE_SCRIPT="/usr/share/flowproxy/generate_nft.sh"
+STATE_FILE="/var/run/flowproxy.running"
 
 log_msg() {
     local level="$1"; shift
@@ -30,7 +31,6 @@ apply_nft_rules() {
         "$GENERATE_SCRIPT" > "$NFT_CONF"
         if [ $? -eq 0 ]; then
             log_msg info "Applying nftables rules from $NFT_CONF"
-            # 先手动清理旧表，再加载新配置
             nft delete table inet flowproxy 2>/dev/null
             nft -f "$NFT_CONF"
             return $?
@@ -83,6 +83,8 @@ start_service() {
     apply_nft_rules || { log_msg error "nftables application failed"; return 1; }
     add_route
 
+    # 创建状态文件标记
+    touch "$STATE_FILE"
     log_msg info "FlowProxy service started successfully"
 }
 
@@ -90,6 +92,8 @@ stop_service() {
     log_msg info "Stopping FlowProxy..."
     delete_route
     delete_nft
+    # 移除状态文件标记
+    rm -f "$STATE_FILE"
     log_msg info "FlowProxy service stopped"
 }
 

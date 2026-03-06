@@ -6,6 +6,7 @@ import { connect } from 'ubus';
 
 const UCI_CONFIG = 'flowproxy';
 const LOG_FILE = '/var/log/flowproxy.log';
+const STATE_FILE = '/var/run/flowproxy.running';
 const NFT_TABLE = 'flowproxy';
 
 function uci_get_config(section, option, default_val) {
@@ -23,7 +24,10 @@ const methods = {
         call: function() {
             let enabled = uci_get_config('global', 'enabled', '0');
             let lan_ip = '';
-            let nft_running = (system('nft list table inet ' + NFT_TABLE + ' >/dev/null 2>&1') === 0);
+            
+            // 极速检测：检查标记文件是否存在
+            // 这种方式不需要 fork 任何进程，仅需 1 个系统调用
+            let is_running = access(STATE_FILE, 'f'); 
             
             try {
                 let ubus_conn = connect();
@@ -38,8 +42,8 @@ const methods = {
 
             return {
                 enabled: int(enabled),
-                running: nft_running ? 1 : 0,
-                nft: { tcp: nft_running ? 1 : 0, udp: nft_running ? 1 : 0 },
+                running: is_running ? 1 : 0,
+                nft: { tcp: is_running ? 1 : 0, udp: is_running ? 1 : 0 },
                 proxy_ip: uci_get_config('global', 'proxy_ip', ''),
                 lan_ip: lan_ip,
                 interface: uci_get_config('global', 'interface', 'br-lan'),
@@ -136,22 +140,8 @@ const methods = {
         call: function() {
             let mark = uci_get_config('global', 'tproxy_mark', '100');
             let res_file = '/tmp/flowproxy_runtime.tmp';
-            
-            // 使用 system 组合命令将所有诊断信息输出到一个临时文件
-            // 这种方式规避了 popen 在某些 ucode 版本下的读取 API 不兼容问题
-            let cmd = '( ' +
-                'echo "--- [ nftables live rules ] ---"; ' +
-                'nft list table inet ' + NFT_TABLE + ' 2>/dev/null || echo "(table not found)"; ' +
-                'echo ""; ' +
-                'echo "--- [ ip rule list ] ---"; ' +
-                'ip rule show 2>/dev/null; ' +
-                'echo ""; ' +
-                'echo "--- [ ip route table ' + mark + ' ] ---"; ' +
-                'ip route show table ' + mark + ' 2>/dev/null || echo "(table empty)"; ' +
-                ') > ' + res_file;
-            
+            let cmd = '( echo "--- [ nftables live rules ] ---"; nft list table inet ' + NFT_TABLE + ' 2>/dev/null || echo "(table not found)"; echo ""; echo "--- [ ip rule list ] ---"; ip rule show 2>/dev/null; echo ""; echo "--- [ ip route table ' + mark + ' ] ---"; ip route show table ' + mark + ' 2>/dev/null || echo "(table empty)"; ) > ' + res_file;
             system(cmd);
-            
             let result = "";
             try {
                 if (access(res_file, 'r')) {
@@ -159,7 +149,6 @@ const methods = {
                     system('rm -f ' + res_file);
                 }
             } catch (e) {}
-            
             return { runtime: trim(result || "(failed to capture runtime config)") };
         }
     }
