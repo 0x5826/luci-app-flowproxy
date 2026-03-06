@@ -85,11 +85,11 @@ sequenceDiagram
     
     P->>R: 进入路由决策层
     alt Mark == 100
-        R->>T: 强制查表 100
-        T->>G: 转发至代理服务器
+        R->>T: 匹配策略: 跳转至 Table 100
+        T->>G: 转发至代理服务器网关
     else Mark == 0
-        R->>P: 查找默认路由
-        P->>P: 直接从 WAN 口发出
+        R->>P: 匹配默认策略: 查找 Table Main
+        P->>P: 遵循系统原有路由逻辑 (如 WAN/PPPoE)
     end
 ```
 
