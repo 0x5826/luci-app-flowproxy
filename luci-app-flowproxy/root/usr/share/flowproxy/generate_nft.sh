@@ -24,9 +24,7 @@ gen_set_definition() {
     enabled=$(uci -q get "$CONFIG.$section.enabled")
     [ "$enabled" = "0" ] && return
 
-    # 记录已启用的 Set 供规则检查引用
     ENABLED_SETS="${ENABLED_SETS}@${section} "
-
     type=$(uci -q get "$CONFIG.$section.type")
     [ -z "$type" ] && type="ipv4_addr"
     
@@ -86,7 +84,6 @@ process_rule() {
     counter=$(uci -q get "$CONFIG.$section.counter")
     [ -z "$match_value" ] && return
 
-    # 引用检查：如果名单未启用或不存在，则跳过
     case "$match_value" in
         @*)
             local set_ref=$(echo "$match_value" | cut -d' ' -f1)
@@ -113,8 +110,6 @@ process_rule() {
     [ -n "$line" ] && echo "        $line"
 }
 
-# --- 准备数据 ---
-# 必须先扫描所有 set 以填充 ENABLED_SETS
 SECTIONS_SET=$(uci -q show "$CONFIG" | grep "=nftset" | cut -d'.' -f2 | cut -d'=' -f1)
 SECTIONS_TCP=$(uci -q show "$CONFIG" | grep "=tcp_rule" | cut -d'.' -f2 | cut -d'=' -f1)
 SECTIONS_UDP=$(uci -q show "$CONFIG" | grep "=udp_rule" | cut -d'.' -f2 | cut -d'=' -f1)
@@ -141,6 +136,7 @@ if [ "$TCP_ENABLED" = "1" ]; then
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
 EOF
+    # 内置防回环：符合逻辑规范
     [ -n "$PROXY_IP" ] && echo "        ip saddr $PROXY_IP ip protocol tcp counter return" >> "$OUTPUT_FILE"
     for s in $SECTIONS_TCP; do process_rule "$s" "tcp" >> "$OUTPUT_FILE"; done
     echo "        ip protocol tcp counter meta mark set $TPROXY_MARK" >> "$OUTPUT_FILE"
@@ -154,6 +150,7 @@ if [ "$UDP_ENABLED" = "1" ]; then
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
 EOF
+    # 内置防回环：符合逻辑规范
     [ -n "$PROXY_IP" ] && echo "        ip saddr $PROXY_IP ip protocol udp counter return" >> "$OUTPUT_FILE"
     for s in $SECTIONS_UDP; do process_rule "$s" "udp" >> "$OUTPUT_FILE"; done
     echo "        ip protocol udp counter meta mark set $TPROXY_MARK" >> "$OUTPUT_FILE"
