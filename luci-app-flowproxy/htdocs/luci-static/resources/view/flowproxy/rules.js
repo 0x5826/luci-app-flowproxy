@@ -20,13 +20,15 @@ return L.view.extend({
         m = new form.Map('flowproxy', _('flowproxy - rules'),
             _('define nftables rules. choose match type and provide value (IP, MAC, or @set).'));
 
-        // 1. 快捷模板区域
+        // 1. 快捷模板区域 (补全了 src ip 和 dst ip)
         s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
         s.render = L.bind(function() {
             var presets = {
                 'local': { name: 'skip local (dst)', type: 'custom', val: 'meta nfproto ipv4 ip daddr type { local, anycast, multicast }', proto: 'both' },
                 'private': { name: 'skip private (dst)', type: 'dst_ip', val: '@private_dst_ip_v4', proto: 'both' },
                 'china': { name: 'skip china (dst)', type: 'dst_ip', val: '@chnroute_dst_ip_v4', proto: 'both' },
+                'src_ip': { name: 'skip ip (src)', type: 'src_ip', val: '@no_proxy_src_ip_v4', proto: 'both' },
+                'dst_ip': { name: 'skip ip (dst)', type: 'dst_ip', val: '@no_proxy_dst_ip_v4', proto: 'both' },
                 'src_mac': { name: 'skip mac (src)', type: 'src_mac', val: '@no_proxy_src_mac', proto: 'both' },
                 'tcp_ports': { name: 'skip ports (dst)', type: 'dst_port', val: '@no_proxy_dst_tcp_ports', proto: 'tcp' }
             };
