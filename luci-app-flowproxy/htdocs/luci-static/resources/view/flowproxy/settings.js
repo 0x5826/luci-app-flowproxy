@@ -60,10 +60,10 @@ return L.view.extend({
         m = new form.Map('flowproxy', _('flowproxy'),
             _('traffic diversion based on nftables rules for routing specific traffic to proxy software.'));
 
-        s = m.section(form.NamedSection, '_status', 'flowproxy', _('service control panel'));
+        s = m.section(form.NamedSection, '_status', 'flowproxy', _('service status'));
         s.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'class': 'table', 'style': 'margin-bottom: 15px;' }, [
+                E('div', { 'class': 'table' }, [
                     E('div', { 'class': 'tr' }, [
                         E('div', { 'class': 'td left', 'style': 'width: 30%; font-weight: bold;' }, _('service status')),
                         E('div', { 'class': 'td left', 'id': 'service-status' }, _('loading...'))
@@ -85,29 +85,24 @@ return L.view.extend({
                         E('div', { 'class': 'td left', 'id': 'tproxy-mark' }, '-')
                     ])
                 ]),
-                // 美化后的控制按钮组
-                E('div', { 
-                    'style': 'background: #f4f4f4; padding: 15px; border-radius: 6px; border: 1px solid #ddd; display: flex; align-items: center; gap: 10px;' 
-                }, [
+                // 传统的右下角按钮布局
+                E('div', { 'style': 'display: flex; justify-content: flex-end; gap: 5px; margin-top: 10px;' }, [
                     E('button', { 
                         'class': 'cbi-button cbi-button-save', 
-                        'style': 'flex: 1; height: 36px; font-weight: bold;',
                         'click': L.bind(this.handleStart, this), 
                         'id': 'btn-start' 
-                    }, [ E('em', { 'class': 'icon-play' }), ' ', _('start') ]),
+                    }, _('start')),
                     
                     E('button', { 
                         'class': 'cbi-button cbi-button-reset', 
-                        'style': 'flex: 1; height: 36px; font-weight: bold;',
                         'click': L.bind(this.handleStop, this), 
                         'id': 'btn-stop' 
-                    }, [ E('em', { 'class': 'icon-stop' }), ' ', _('stop') ]),
+                    }, _('stop')),
                     
                     E('button', { 
                         'class': 'cbi-button cbi-button-apply', 
-                        'style': 'flex: 1; height: 36px; font-weight: bold;',
                         'click': L.bind(this.handleRestart, this) 
-                    }, [ E('em', { 'class': 'icon-reload' }), ' ', _('restart') ])
+                    }, _('restart'))
                 ])
             ]);
         }, this);
