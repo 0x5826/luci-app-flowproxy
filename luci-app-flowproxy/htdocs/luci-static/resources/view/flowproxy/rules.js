@@ -20,8 +20,8 @@ return L.view.extend({
         m = new form.Map('flowproxy', _('flowproxy - rules'),
             _('define nftables rules. choose match type and provide value (IP, MAC, or @set).'));
 
-        // 1. 快捷模板区域
-        s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
+        // 1. 快捷模板与重置区域
+        s = m.section(form.NamedSection, '_templates', 'flowproxy', _('rule templates'));
         s.render = L.bind(function() {
             var presets = {
                 'local': { name: 'skip local (dst)', type: 'custom', val: 'meta nfproto ipv4 ip daddr type { local, anycast, multicast }', proto: 'both' },
@@ -37,9 +37,12 @@ return L.view.extend({
                 E('div', { 'style': 'padding: 10px; display: flex; flex-wrap: wrap; gap: 8px;' })
             ]);
 
+            var btnGroup = container.querySelector('div');
+
+            // 循环生成单个添加按钮
             Object.keys(presets).forEach(function(k) {
                 var p = presets[k];
-                var btn = E('button', {
+                btnGroup.appendChild(E('button', {
                     'class': 'cbi-button cbi-button-apply',
                     'click': ui.createHandlerFn(this, function() {
                         var sid = uci.add('flowproxy', 'rule');
@@ -50,14 +53,50 @@ return L.view.extend({
                         uci.set('flowproxy', sid, 'match_value', p.val);
                         uci.set('flowproxy', sid, 'action', 'return');
                         uci.set('flowproxy', sid, 'counter', '0');
-                        
+                        return uci.save().then(function() { location.reload(); });
+                    })
+                }, [ E('em', { 'class': 'icon-plus' }), ' ', p.name ]));
+            }, this);
+
+            // 增加“恢复默认模版”按钮
+            btnGroup.appendChild(E('button', {
+                'class': 'cbi-button cbi-button-reset',
+                'style': 'margin-left: auto; border: 1px solid #cc0000; color: #cc0000;',
+                'click': ui.createHandlerFn(this, function() {
+                    if (confirm(_('this will delete ALL current rules and generate default templates. are you sure?'))) {
+                        // 1. 查找并删除所有现有 rule 节点
+                        var existing = uci.sections('flowproxy', 'rule');
+                        existing.forEach(function(r) {
+                            uci.remove('flowproxy', r['.name']);
+                        });
+
+                        // 2. 依次添加预设的默认全套模版
+                        var default_rules = [
+                            { name: 'skip local (dst)', type: 'custom', val: 'meta nfproto ipv4 ip daddr type { local, anycast, multicast }', proto: 'both' },
+                            { name: 'skip proxy server', type: 'src_ip', val: '@proxy_server_ip', proto: 'both' },
+                            { name: 'skip mac (src)', type: 'src_mac', val: '@no_proxy_src_mac', proto: 'both' },
+                            { name: 'skip private (dst)', type: 'dst_ip', val: '@private_dst_ip_v4', proto: 'both' },
+                            { name: 'skip china (dst)', type: 'dst_ip', val: '@chnroute_dst_ip_v4', proto: 'both' },
+                            { name: 'skip tcp ports (dst)', type: 'dst_port', val: '@no_proxy_dst_tcp_ports', proto: 'tcp' }
+                        ];
+
+                        default_rules.forEach(function(r) {
+                            var sid = uci.add('flowproxy', 'rule');
+                            uci.set('flowproxy', sid, 'name', r.name);
+                            uci.set('flowproxy', sid, 'enabled', '1');
+                            uci.set('flowproxy', sid, 'protocol', r.proto);
+                            uci.set('flowproxy', sid, 'match_type', r.type);
+                            uci.set('flowproxy', sid, 'match_value', r.val);
+                            uci.set('flowproxy', sid, 'action', 'return');
+                            uci.set('flowproxy', sid, 'counter', '0');
+                        });
+
                         return uci.save().then(function() {
                             location.reload();
                         });
-                    })
-                }, [ E('em', { 'class': 'icon-plus' }), ' ', p.name ]);
-                container.querySelector('div').appendChild(btn);
-            }, this);
+                    }
+                })
+            }, [ E('em', { 'class': 'icon-reload' }), ' ', _('reset to default templates') ]));
 
             return container;
         }, this);
@@ -69,7 +108,6 @@ return L.view.extend({
         s.sortable = true;
         s.nodescription = true;
 
-        // 强制重写渲染后的删除逻辑
         s.renderRowActions = function(section_id) {
             var node = form.TableSection.prototype.renderRowActions.apply(this, [section_id]);
             var delBtn = node.querySelector('.cbi-button-remove');
@@ -77,9 +115,7 @@ return L.view.extend({
                 delBtn.onclick = L.bind(function(ev) {
                     if (confirm(_('really delete this rule?'))) {
                         uci.remove('flowproxy', section_id);
-                        uci.save().then(function() {
-                            location.reload();
-                        });
+                        uci.save().then(function() { location.reload(); });
                     }
                     ev.stopPropagation();
                     return false;
@@ -97,47 +133,30 @@ return L.view.extend({
             uci.set('flowproxy', sid, 'match_value', '');
             uci.set('flowproxy', sid, 'action', 'return');
             uci.set('flowproxy', sid, 'counter', '0');
-            
-            return uci.save().then(function() {
-                location.reload();
-            });
+            return uci.save().then(function() { location.reload(); });
         };
 
         o = s.option(form.Flag, 'enabled', _('enabled'));
         o.width = '5%';
-
         o = s.option(form.Value, 'name', _('name'));
         o.rmempty = false;
         o.width = '10%';
-
         o = s.option(form.ListValue, 'protocol', _('protocol'));
-        o.value('both', 'both');
-        o.value('tcp', 'tcp');
-        o.value('udp', 'udp');
+        o.value('both', 'both'); o.value('tcp', 'tcp'); o.value('udp', 'udp');
         o.width = '10%';
-
         o = s.option(form.ListValue, 'match_type', _('match type'));
-        o.value('dst_ip', 'dest ip');
-        o.value('src_ip', 'src ip');
-        o.value('src_mac', 'src mac');
-        o.value('dst_port', 'dest port');
-        o.value('src_port', 'src port');
-        o.value('custom', 'custom (raw)');
+        o.value('dst_ip', 'dest ip'); o.value('src_ip', 'src ip'); o.value('src_mac', 'src mac');
+        o.value('dst_port', 'dest port'); o.value('src_port', 'src port'); o.value('custom', 'custom (raw)');
         o.default = 'dst_ip';
         o.width = '10%';
-
         o = s.option(form.Value, 'match_value', _('match value'));
         o.rmempty = false;
         o.width = '35%';
         nftsets.forEach(function(set) { o.value(set); });
-
         o = s.option(form.Flag, 'counter', _('counter'));
         o.width = '5%';
-
         o = s.option(form.ListValue, 'action', _('action'));
-        o.value('return', 'return');
-        o.value('accept', 'accept');
-        o.value('drop', 'drop');
+        o.value('return', 'return'); o.value('accept', 'accept'); o.value('drop', 'drop');
         o.default = 'return';
         o.width = '10%';
 
