@@ -137,7 +137,7 @@ if [ "$TCP_ENABLED" = "1" ]; then
         meta nfproto != ipv4 return
 EOF
     # 内置防回环：符合逻辑规范
-    [ -n "$PROXY_IP" ] && echo "        ip saddr $PROXY_IP ip protocol tcp counter return" >> "$OUTPUT_FILE"
+    [ -n "$PROXY_IP" ] && echo "        ip saddr $PROXY_IP counter return" >> "$OUTPUT_FILE"
     for s in $SECTIONS_TCP; do process_rule "$s" "tcp" >> "$OUTPUT_FILE"; done
     echo "        ip protocol tcp counter meta mark set $TPROXY_MARK" >> "$OUTPUT_FILE"
     echo "    }" >> "$OUTPUT_FILE"
@@ -151,7 +151,7 @@ if [ "$UDP_ENABLED" = "1" ]; then
         meta nfproto != ipv4 return
 EOF
     # 内置防回环：符合逻辑规范
-    [ -n "$PROXY_IP" ] && echo "        ip saddr $PROXY_IP ip protocol udp counter return" >> "$OUTPUT_FILE"
+    [ -n "$PROXY_IP" ] && echo "        ip saddr $PROXY_IP counter return" >> "$OUTPUT_FILE"
     for s in $SECTIONS_UDP; do process_rule "$s" "udp" >> "$OUTPUT_FILE"; done
     echo "        ip protocol udp counter meta mark set $TPROXY_MARK" >> "$OUTPUT_FILE"
     echo "    }" >> "$OUTPUT_FILE"
