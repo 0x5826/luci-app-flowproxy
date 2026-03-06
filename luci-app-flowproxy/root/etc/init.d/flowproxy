@@ -16,7 +16,26 @@ log_msg() {
     local level="$1"; shift
     local msg="$*"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    # 简单的日志截断逻辑，防止日志无限增长
+    # 读取配置的大小限制，默认 1024KB
+    local max_size=$(uci -q get "$UCI_CONFIG.global.log_size" || echo 1024)
+    local current_size=$(du -k "$LOG_FILE" 2>/dev/null | cut -f1)
+    if [ "${current_size:-0}" -gt "$max_size" ]; then
+        mv "$LOG_FILE" "$LOG_FILE.old"
+        touch "$LOG_FILE"
+    fi
+
     echo "[$timestamp] [$level] $msg" >> "$LOG_FILE"
+}
+
+check_env() {
+    # 检测核心二进制工具是否存在
+    if ! command -v nft >/dev/null 2>&1; then
+        log_msg error "nftables binary not found"
+        return 1
+    fi
+    return 0
 }
 
 check_config() {
@@ -31,9 +50,14 @@ apply_nft_rules() {
         "$GENERATE_SCRIPT" > "$NFT_CONF"
         if [ $? -eq 0 ]; then
             log_msg info "Applying nftables rules from $NFT_CONF"
+            # 确保内核支持 inet 表
             nft delete table inet flowproxy 2>/dev/null
-            nft -f "$NFT_CONF"
-            return $?
+            if nft -f "$NFT_CONF"; then
+                return 0
+            else
+                log_msg error "nftables rules application failed (syntax error)"
+                return 1
+            fi
         else
             log_msg error "Failed to generate nftables config"
             return 1
@@ -49,11 +73,13 @@ add_route() {
     local interface=$(uci -q get "$UCI_CONFIG.global.interface" || echo "br-lan")
     local tproxy_mark=$(uci -q get "$UCI_CONFIG.global.tproxy_mark" || echo "100")
     
+    # 清理可能存在的旧规则，防止重复冲突
     ip rule del fwmark "$tproxy_mark" lookup "$tproxy_mark" 2>/dev/null
     ip route flush table "$tproxy_mark" 2>/dev/null
     
+    # 增加路由和策略
     ip route add default via "$proxy_ip" dev "$interface" table "$tproxy_mark"
-    ip rule add fwmark "$tproxy_mark" lookup "$tproxy_mark"
+    ip rule add fwmark "$tproxy_mark" lookup "$tproxy_mark" priority 100
     log_msg info "Route added: via $proxy_ip dev $interface table $tproxy_mark"
 }
 
@@ -79,11 +105,11 @@ start_service() {
 
     log_msg info "Starting FlowProxy..."
 
+    check_env || return 1
     check_config || return 1
-    apply_nft_rules || { log_msg error "nftables application failed"; return 1; }
+    apply_nft_rules || return 1
     add_route
 
-    # 创建状态文件标记
     touch "$STATE_FILE"
     log_msg info "FlowProxy service started successfully"
 }
@@ -92,11 +118,11 @@ stop_service() {
     log_msg info "Stopping FlowProxy..."
     delete_route
     delete_nft
-    # 移除状态文件标记
     rm -f "$STATE_FILE"
     log_msg info "FlowProxy service stopped"
 }
 
 service_triggers() {
+    # 增加对整个配置文件的监听，任何改动都会触发热重载
     procd_add_reload_trigger "$UCI_CONFIG"
 }

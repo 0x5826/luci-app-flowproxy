@@ -12,19 +12,21 @@ return L.view.extend({
     render: function() {
         var m, s, o;
 
+        // 预取 Set 名用于补全建议
         var nftsets = uci.sections('flowproxy', 'nftset').map(function(s) {
             return '@' + s['.name'];
         });
         nftsets.push('@proxy_server_ip');
 
-        m = new form.Map('flowproxy', _('flowproxy - rules'),
+        m = new form.Map('flowproxy', _('代理分流 - 规则管理'),
             _('define nftables rules. choose match type and provide value (IP, MAC, or @set).'));
 
-        // 1. 快捷模板区域 (仅保留单个添加按钮)
+        // 1. 快捷模板区域
         s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
         s.render = L.bind(function() {
             var presets = {
                 'local': { name: 'skip local (dst)', type: 'custom', val: 'fib daddr type { local, anycast, multicast }', proto: 'both' },
+                'proxy_srv': { name: 'skip proxy server', type: 'src_ip', val: '@proxy_server_ip', proto: 'both' },
                 'private': { name: 'skip private (dst)', type: 'dst_ip', val: '@private_dst_ip_v4', proto: 'both' },
                 'china': { name: 'skip china (dst)', type: 'dst_ip', val: '@chnroute_dst_ip_v4', proto: 'both' },
                 'src_ip': { name: 'skip ip (src)', type: 'src_ip', val: '@no_proxy_src_ip_v4', proto: 'both' },
@@ -37,9 +39,10 @@ return L.view.extend({
                 E('div', { 'style': 'padding: 10px; display: flex; flex-wrap: wrap; gap: 8px;' })
             ]);
 
+            var btnGroup = container.querySelector('div');
             Object.keys(presets).forEach(function(k) {
                 var p = presets[k];
-                container.querySelector('div').appendChild(E('button', {
+                btnGroup.appendChild(E('button', {
                     'class': 'cbi-button cbi-button-apply',
                     'click': ui.createHandlerFn(this, function() {
                         var sid = uci.add('flowproxy', 'rule');
@@ -70,7 +73,7 @@ return L.view.extend({
             var resetBtn = E('button', {
                 'class': 'cbi-button cbi-button-reset',
                 'style': 'margin-left: 10px; border: 1px solid #cc0000; color: #cc0000;',
-                'title': _('Delete all current rules and load recommended templates'),
+                'title': _('reset to default templates'),
                 'click': ui.createHandlerFn(this, function() {
                     if (confirm(_('this will delete ALL current rules and generate default templates. are you sure?'))) {
                         var existing = uci.sections('flowproxy', 'rule');
@@ -95,7 +98,6 @@ return L.view.extend({
                             uci.set('flowproxy', sid, 'action', 'return');
                             uci.set('flowproxy', sid, 'counter', '0');
                         });
-
                         return uci.save().then(function() { location.reload(); });
                     }
                 })
@@ -132,7 +134,6 @@ return L.view.extend({
             return uci.save().then(function() { location.reload(); });
         };
 
-        // 列宽优化分配
         o = s.option(form.Flag, 'enabled', _('enabled'));
         o.width = '8%';
 
@@ -145,8 +146,12 @@ return L.view.extend({
         o.width = '10%';
 
         o = s.option(form.ListValue, 'match_type', _('match type'));
-        o.value('dst_ip', 'dest ip'); o.value('src_ip', 'src ip'); o.value('src_mac', 'src mac');
-        o.value('dst_port', 'dest port'); o.value('src_port', 'src port'); o.value('custom', 'custom (raw)');
+        o.value('dst_ip', _('dest ip'));
+        o.value('src_ip', _('src ip'));
+        o.value('src_mac', _('src mac'));
+        o.value('dst_port', _('dest port'));
+        o.value('src_port', _('src port'));
+        o.value('custom', _('custom (raw)'));
         o.default = 'dst_ip';
         o.width = '15%';
 
