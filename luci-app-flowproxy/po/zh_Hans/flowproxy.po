@@ -70,7 +70,7 @@ msgid "basic settings"
 msgstr "基础设置"
 
 msgid "enable flowproxy"
-msgstr "启用 FlowProxy"
+msgstr "启用代理分流"
 
 msgid "proxy ip address"
 msgstr "代理服务器 IP 地址"
@@ -108,7 +108,7 @@ msgstr "暂无日志内容"
 
 # Rules Page
 msgid "flowproxy - rules"
-msgstr "FlowProxy - 规则管理"
+msgstr "代理分流 - 规则管理"
 
 msgid "quick templates"
 msgstr "快捷模版"
@@ -190,7 +190,7 @@ msgstr "确定要删除这条规则吗？"
 
 # Lists Page
 msgid "flowproxy - lists"
-msgstr "FlowProxy - 名单管理"
+msgstr "代理分流 - 名单管理"
 
 msgid "elements"
 msgstr "元素列表"
@@ -212,7 +212,7 @@ msgstr "名单更改已成功应用。"
 
 # Preview Page
 msgid "flowproxy - preview"
-msgstr "FlowProxy - 配置预览"
+msgstr "代理分流 - 配置预览"
 
 msgid "inspection tabs"
 msgstr "检测项目"
@@ -240,3 +240,7 @@ msgstr "已复制"
 
 msgid "loading..."
 msgstr "加载中..."
+
+# Logs Page
+msgid "flowproxy - logs"
+msgstr "代理分流 - 日志查看"
