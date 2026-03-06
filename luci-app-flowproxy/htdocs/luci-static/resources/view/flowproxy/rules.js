@@ -18,33 +18,24 @@ return L.view.extend({
         nftsets.push('@proxy_server_ip');
 
         m = new form.Map('flowproxy', _('代理分流 - 规则管理'),
-            _('define nftables rules. you can independently enable or disable TCP/UDP diversion.'));
+            _('define nftables rules. you can independently enable or disable TCP/UDP diversion in each section.'));
 
-        // 1. 协议总开关区域
-        s = m.section(form.NamedSection, 'global', 'flowproxy', _('diversion master switches'));
-        
-        o = s.option(form.Flag, 'tcp_enabled', _('enable TCP diversion'));
-        o.rmempty = false; o.default = '1';
-
-        o = s.option(form.Flag, 'udp_enabled', _('enable UDP diversion'));
-        o.rmempty = false; o.default = '1';
-
-        // 2. 快捷模板区域
+        // 1. 快捷模板区域 (紧凑型设计)
         s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
         s.render = L.bind(function() {
             var presets = {
-                'local': { name: 'skip local (dst)', type: 'custom', val: 'fib daddr type { unspec, local, anycast, multicast }' },
-                'proxy_srv': { name: 'skip proxy server', type: 'src_ip', val: '@proxy_server_ip' },
-                'private': { name: 'skip private (dst)', type: 'dst_ip', val: '@private_dst_ip_v4' },
-                'china': { name: 'skip china (dst)', type: 'dst_ip', val: '@chnroute_dst_ip_v4' },
-                'src_ip': { name: 'skip ip (src)', type: 'src_ip', val: '@no_proxy_src_ip_v4' },
-                'dst_ip': { name: 'skip ip (dst)', type: 'dst_ip', val: '@no_proxy_dst_ip_v4' },
-                'src_mac': { name: 'skip mac (src)', type: 'src_mac', val: '@no_proxy_src_mac' },
-                'ports': { name: 'skip ports (dst)', type: 'dst_port', val: '@no_proxy_dst_tcp_ports' }
+                'local': { name: 'local (dst)', type: 'custom', val: 'fib daddr type { unspec, local, anycast, multicast }' },
+                'proxy': { name: 'proxy srv', type: 'src_ip', val: '@proxy_server_ip' },
+                'priv': { name: 'private (dst)', type: 'dst_ip', val: '@private_dst_ip_v4' },
+                'china': { name: 'china (dst)', type: 'dst_ip', val: '@chnroute_dst_ip_v4' },
+                'src_ip': { name: 'ip (src)', type: 'src_ip', val: '@no_proxy_src_ip_v4' },
+                'dst_ip': { name: 'ip (dst)', type: 'dst_ip', val: '@no_proxy_dst_ip_v4' },
+                'mac': { name: 'mac (src)', type: 'src_mac', val: '@no_proxy_src_mac' },
+                'ports': { name: 'ports (dst)', type: 'dst_port', val: '@no_proxy_dst_tcp_ports' }
             };
 
             var container = E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'style': 'padding: 10px; display: flex; flex-wrap: wrap; gap: 8px;' })
+                E('div', { 'style': 'padding: 8px; display: flex; flex-wrap: wrap; gap: 6px;' })
             ]);
 
             var btnGroup = container.querySelector('div');
@@ -52,11 +43,12 @@ return L.view.extend({
                 var p = presets[k];
                 btnGroup.appendChild(E('button', {
                     'class': 'cbi-button cbi-button-apply',
+                    'style': 'padding: 2px 8px; font-size: 0.9em;',
                     'title': _('Click to add to BOTH TCP and UDP lists'),
                     'click': ui.createHandlerFn(this, function() {
                         ['tcp_rule', 'udp_rule'].forEach(function(type) {
                             var sid = uci.add('flowproxy', type);
-                            uci.set('flowproxy', sid, 'name', p.name);
+                            uci.set('flowproxy', sid, 'name', 'skip ' + p.name);
                             uci.set('flowproxy', sid, 'enabled', '1');
                             uci.set('flowproxy', sid, 'match_type', p.type);
                             uci.set('flowproxy', sid, 'match_value', p.val);
@@ -72,12 +64,23 @@ return L.view.extend({
         }, this);
 
         // 辅助函数：创建规则表格
-        var renderTable = L.bind(function(map, type, title) {
+        var renderTable = L.bind(function(map, type, title, switch_option) {
             var s = map.section(form.TableSection, type, title);
             s.addremove = true;
             s.anonymous = true;
             s.sortable = true;
-            s.nodescription = true;
+            s.nodescription = false; // 允许显示描述，用于放开关
+
+            // 核心优化：在表格说明位置放置总开关
+            s.description = E('div', { 'style': 'margin-bottom: 10px; display: flex; align-items: center; gap: 10px; background: #fafafa; padding: 10px; border-radius: 4px;' }, [
+                E('label', { 'style': 'font-weight: bold;' }, _('Master Switch for this list:')),
+                // 借用 map 的 global section 来渲染开关
+                (function() {
+                    var o = new form.Flag(map, 'flowproxy', 'global', switch_option, _('Enable this diversion chain'));
+                    o.rmempty = false;
+                    return o.render('global'); // 渲染 global section 的对应选项
+                })()
+            ]);
 
             s.renderSectionAdd = function(extra_class) {
                 var node = form.TableSection.prototype.renderSectionAdd.apply(this, [extra_class]);
@@ -98,9 +101,12 @@ return L.view.extend({
                             if (type === 'tcp_rule') defs.push({ n: 'skip ports (dst)', t: 'dst_port', v: '@no_proxy_dst_tcp_ports' });
                             defs.forEach(function(r) {
                                 var sid = uci.add('flowproxy', type);
-                                uci.set('flowproxy', sid, 'name', r.n); uci.set('flowproxy', sid, 'enabled', '1');
-                                uci.set('flowproxy', sid, 'match_type', r.t); uci.set('flowproxy', sid, 'match_value', r.v);
-                                uci.set('flowproxy', sid, 'action', 'return'); uci.set('flowproxy', sid, 'counter', '0');
+                                uci.set('flowproxy', sid, 'name', r.n);
+                                uci.set('flowproxy', sid, 'enabled', '1');
+                                uci.set('flowproxy', sid, 'match_type', r.t);
+                                uci.set('flowproxy', sid, 'match_value', r.v);
+                                uci.set('flowproxy', sid, 'action', 'return');
+                                uci.set('flowproxy', sid, 'counter', '0');
                             });
                             return uci.save().then(function() { location.reload(); });
                         }
@@ -136,10 +142,8 @@ return L.view.extend({
                 return uci.save().then(function() { location.reload(); });
             };
 
-            o = s.option(form.Flag, 'enabled', _('enabled'));
-            o.width = '8%';
-            o = s.option(form.Value, 'name', _('name'));
-            o.rmempty = false; o.width = '10%';
+            o = s.option(form.Flag, 'enabled', _('enabled')); o.width = '8%';
+            o = s.option(form.Value, 'name', _('name')); o.rmempty = false; o.width = '10%';
             o = s.option(form.ListValue, 'match_type', _('match type'));
             o.value('dst_ip', 'dest ip'); o.value('src_ip', 'src ip'); o.value('src_mac', 'src mac');
             o.value('dst_port', 'dest port'); o.value('src_port', 'src port'); o.value('custom', 'custom (raw)');
@@ -147,15 +151,14 @@ return L.view.extend({
             o = s.option(form.Value, 'match_value', _('match value'));
             o.rmempty = false; o.width = '32%';
             nftsets.forEach(function(set) { o.value(set); });
-            o = s.option(form.Flag, 'counter', _('counter'));
-            o.width = '8%';
+            o = s.option(form.Flag, 'counter', _('counter')); o.width = '8%';
             o = s.option(form.ListValue, 'action', _('action'));
             o.value('return', 'return'); o.value('accept', 'accept'); o.value('drop', 'drop');
             o.default = 'return'; o.width = '10%';
         }, this);
 
-        renderTable(m, 'tcp_rule', _('TCP Matching Rules'));
-        renderTable(m, 'udp_rule', _('UDP Matching Rules'));
+        renderTable(m, 'tcp_rule', _('TCP Matching Rules'), 'tcp_enabled');
+        renderTable(m, 'udp_rule', _('UDP Matching Rules'), 'udp_enabled');
 
         return m.render();
     }
