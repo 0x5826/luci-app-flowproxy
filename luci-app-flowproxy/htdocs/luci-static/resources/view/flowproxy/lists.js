@@ -24,13 +24,10 @@ return L.view.extend({
         ];
 
         predefined.forEach(L.bind(function(p) {
-            // 在标题后方增加原始 Set 名字标注
-            var title = E('span', {}, [
-                p.name,
-                E('small', { 'style': 'font-family: monospace; font-weight: normal; margin-left: 10px; color: #777;' }, [ '(@', p.id, ')' ])
-            ]);
+            // 修复：使用纯文本拼接，确保在所有 LuCI 版本下都能正常显示标题
+            var fullTitle = p.name + ' (@' + p.id + ')';
             
-            s = m.section(form.NamedSection, p.id, 'nftset', title);
+            s = m.section(form.NamedSection, p.id, 'nftset', fullTitle);
             o = s.option(form.Flag, 'enabled', _('enabled'));
             o.rmempty = false; o.default = '1';
             o = s.option(form.DynamicList, 'elements', _('elements'));
@@ -38,10 +35,7 @@ return L.view.extend({
         }, this));
 
         // 特殊预设：私有地址
-        s = m.section(form.NamedSection, 'private_dst_ip_v4', 'nftset', E('span', {}, [
-            _('private_dst_ip_v4'),
-            E('small', { 'style': 'font-family: monospace; font-weight: normal; margin-left: 10px; color: #777;' }, '(@private_dst_ip_v4)')
-        ]));
+        s = m.section(form.NamedSection, 'private_dst_ip_v4', 'nftset', _('private_dst_ip_v4') + ' (@private_dst_ip_v4)');
         o = s.option(form.Flag, 'enabled', _('enabled'));
         o.rmempty = false; o.default = '1';
         o = s.option(form.Flag, 'auto_generate', _('auto_generate'));
@@ -50,10 +44,7 @@ return L.view.extend({
         o.datatype = 'cidr4'; o.depends('auto_generate', '0');
 
         // 特殊预设：中国路由
-        s = m.section(form.NamedSection, 'chnroute_dst_ip_v4', 'nftset', E('span', {}, [
-            _('chnroute_dst_ip_v4'),
-            E('small', { 'style': 'font-family: monospace; font-weight: normal; margin-left: 10px; color: #777;' }, '(@chnroute_dst_ip_v4)')
-        ]));
+        s = m.section(form.NamedSection, 'chnroute_dst_ip_v4', 'nftset', _('chnroute_dst_ip_v4') + ' (@chnroute_dst_ip_v4)');
         o = s.option(form.Flag, 'enabled', _('enabled'));
         o.rmempty = false; o.default = '1';
         o = s.option(form.Value, 'file_path', _('file_path'));
