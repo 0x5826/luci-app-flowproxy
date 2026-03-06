@@ -152,11 +152,11 @@ return L.view.extend({
 
         o = s.option(form.Value, 'match_value', _('match value'));
         o.rmempty = false;
-        o.width = '25%';
+        o.width = '32%';
         nftsets.forEach(function(set) { o.value(set); });
 
         o = s.option(form.Flag, 'counter', _('counter'));
-        o.width = '10%';
+        o.width = '6%';
 
         o = s.option(form.ListValue, 'action', _('action'));
         o.value('return', 'return'); o.value('accept', 'accept'); o.value('drop', 'drop');
