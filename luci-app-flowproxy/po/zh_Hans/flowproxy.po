@@ -72,8 +72,8 @@ msgstr "TPROXY 标记值"
 msgid "flowproxy - rules"
 msgstr "代理分流 - 规则管理"
 
-msgid "define nftables rules. separate lists for TCP and UDP flows."
-msgstr "定义 nftables 规则。TCP 和 UDP 流量已拆分为独立列表管理。"
+msgid "Manage diversion rules, mainly used to define which traffic should bypass the proxy server."
+msgstr "管理分流规则，主要用于定义哪些流量不需要被分流到代理服务器。"
 
 msgid "quick templates"
 msgstr "快捷模版"

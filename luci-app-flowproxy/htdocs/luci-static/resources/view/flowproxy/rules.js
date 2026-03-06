@@ -19,7 +19,7 @@ return L.view.extend({
         nftsets.push('@proxy_server_ip');
 
         m = new form.Map('flowproxy', _('flowproxy - rules'),
-            _('define nftables rules. separate lists for TCP and UDP flows. internal loop prevention is applied automatically.'));
+            _('Manage diversion rules, mainly used to define which traffic should bypass the proxy server.'));
 
         // 1. 快捷模板区域
         s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
