@@ -31,7 +31,7 @@ return L.view.extend({
                     Object.keys(presets).map(function(k) {
                         return E('button', {
                             'class': 'cbi-button cbi-button-apply',
-                            'click': function(ev) {
+                            'click': L.bind(function(ev) {
                                 ev.preventDefault();
                                 var sid = uci.add('flowproxy', 'rule');
                                 uci.set('flowproxy', sid, 'name', presets[k].name);
@@ -40,8 +40,12 @@ return L.view.extend({
                                 uci.set('flowproxy', sid, 'content', presets[k].content);
                                 uci.set('flowproxy', sid, 'action', 'return');
                                 uci.set('flowproxy', sid, 'counter', '0');
-                                m.save(null, true).then(function() { location.reload(); });
-                            }
+                                
+                                // 保存并局部重绘，不刷新页面
+                                return m.save(null, true).then(L.bind(function() {
+                                    return this.map.render();
+                                }, this));
+                            }, this)
                         }, [ E('em', { 'class': 'icon-plus' }), ' ', presets[k].name ]);
                     })
                 )
@@ -70,8 +74,8 @@ return L.view.extend({
 
         o = s.option(form.Value, 'content', _('content'));
         o.rmempty = false;
-        o.placeholder = 'e.g. ip daddr @private_dst_ip_v4';
         o.width = '45%';
+        // 移除了 placeholder，避免与实际填写的规则内容混淆
 
         o = s.option(form.Flag, 'counter', _('counter'));
         o.width = '5%';
