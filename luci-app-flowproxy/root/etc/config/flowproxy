@@ -9,99 +9,91 @@ config flowproxy 'global'
 
 # 默认规则：跳过本地/广播/组播
 config rule
-	option name 'Skip Local/Multicast'
+	option name 'skip local (dst)'
 	option protocol 'both'
 	option enabled '1'
-	option content 'fib daddr type { local, anycast, multicast }'
+	option match_type 'custom'
+	option match_value 'fib daddr type { local, anycast, multicast }'
 	option action 'return'
 	option counter '0'
 
 # 默认规则：跳过代理服务器自身
 config rule
-	option name 'Skip Proxy Server'
+	option name 'skip proxy server'
 	option protocol 'both'
 	option enabled '1'
-	option content 'ip saddr @proxy_server_ip'
+	option match_type 'src_ip'
+	option match_value '@proxy_server_ip'
 	option action 'return'
 	option counter '0'
 
 # 默认规则：跳过不代理的源MAC
 config rule
-	option name 'Skip Source MAC'
+	option name 'skip mac (src)'
 	option protocol 'both'
 	option enabled '1'
-	option content 'ether saddr @no_proxy_src_mac'
+	option match_type 'src_mac'
+	option match_value '@no_proxy_src_mac'
 	option action 'return'
 	option counter '0'
 
 # 默认规则：跳过私有地址
 config rule
-	option name 'Skip Private IP'
+	option name 'skip private (dst)'
 	option protocol 'both'
 	option enabled '1'
-	option content 'ip daddr @private_dst_ip_v4'
+	option match_type 'dst_ip'
+	option match_value '@private_dst_ip_v4'
 	option action 'return'
 	option counter '0'
 
 # 默认规则：跳过中国IP
 config rule
-	option name 'Skip China IP'
+	option name 'skip china (dst)'
 	option protocol 'both'
 	option enabled '1'
-	option content 'ip daddr @chnroute_dst_ip_v4'
+	option match_type 'dst_ip'
+	option match_value '@chnroute_dst_ip_v4'
 	option action 'return'
 	option counter '0'
 
 # 默认规则：跳过指定TCP端口
 config rule
-	option name 'Skip TCP Ports'
+	option name 'skip ports (dst)'
 	option protocol 'tcp'
 	option enabled '1'
-	option content 'tcp dport @no_proxy_dst_tcp_ports'
+	option match_type 'dst_port'
+	option match_value '@no_proxy_dst_tcp_ports'
 	option action 'return'
 	option counter '0'
 
 # nftables set 配置
 config nftset 'no_proxy_src_mac'
-	option name 'no_proxy_src_mac'
 	option enabled '1'
 	option type 'ether_addr'
-	option comment '不走代理的源MAC地址'
 
 config nftset 'no_proxy_src_ip_v4'
-	option name 'no_proxy_src_ip_v4'
 	option enabled '1'
 	option type 'ipv4_addr'
-	option comment '不走代理的源IPv4地址'
 
 config nftset 'no_proxy_dst_ip_v4'
-	option name 'no_proxy_dst_ip_v4'
 	option enabled '1'
 	option type 'ipv4_addr'
-	option comment '不走代理的目标IPv4地址'
 
 config nftset 'private_dst_ip_v4'
-	option name 'private_dst_ip_v4'
 	option enabled '1'
 	option type 'ipv4_addr'
-	option comment '私有地址段（自动生成）'
 	option auto_generate '1'
 
 config nftset 'chnroute_dst_ip_v4'
-	option name 'chnroute_dst_ip_v4'
 	option enabled '1'
 	option type 'ipv4_addr'
-	option comment '中国路由地址段'
 	option file_path '/usr/share/flowproxy/chnroute.txt'
 
 config nftset 'no_proxy_dst_tcp_ports'
-	option name 'no_proxy_dst_tcp_ports'
 	option enabled '1'
 	option type 'inet_service'
-	option comment '不走代理的TCP端口'
 
 config nftset 'no_proxy_dst_udp_ports'
-	option name 'no_proxy_dst_udp_ports'
 	option enabled '1'
 	option type 'inet_service'
-	option comment '不走代理的UDP端口'
