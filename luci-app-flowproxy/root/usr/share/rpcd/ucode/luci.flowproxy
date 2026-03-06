@@ -12,7 +12,7 @@ const NFT_TABLE = 'flowproxy';
 
 // 辅助函数：安全 trim
 function safe_trim(str) {
-    return (typeof str === 'string') ? trim(str) : '';
+    return (type(str) === 'string') ? trim(str) : '';
 }
 
 const methods = {

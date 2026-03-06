@@ -28,25 +28,25 @@ return L.view.extend({
         m = new form.Map('flowproxy', _('代理分流'),
             _('traffic diversion based on nftables rules. the service will automatically start/stop when you click "save & apply".'));
 
-        s = m.section(form.NamedSection, '_status', 'flowproxy', _('service status'));
-        s.render = L.bind(function() {
-            return E('div', { 'class': 'cbi-section-node' }, [
-                E('div', { 'class': 'cbi-value' }, [
-                    E('label', { 'class': 'cbi-value-title', 'style': 'font-weight: bold;' }, _('current status')),
-                    E('div', { 'class': 'cbi-value-field', 'id': 'service-status', 'style': 'padding-top: .5rem;' }, E('em', { 'class': 'spinning' }, _('checking...')))
-                ]),
-                E('div', { 'class': 'cbi-value', 'id': 'nft-status-row', 'style': 'display: none;' }, [
-                    E('label', { 'class': 'cbi-value-title' }, _('active protocols')),
-                    E('div', { 'class': 'cbi-value-field', 'id': 'nft-status', 'style': 'padding-top: .5rem;' }, '-')
-                ]),
-                E('div', { 'class': 'cbi-value', 'id': 'proxy-ip-row', 'style': 'display: none;' }, [
-                    E('label', { 'class': 'cbi-value-title' }, _('active proxy ip')),
-                    E('div', { 'class': 'cbi-value-field', 'id': 'proxy-ip', 'style': 'padding-top: .5rem;' }, '-')
-                ])
-            ]);
-        }, this);
-
         s = m.section(form.NamedSection, 'global', 'flowproxy', _('basic settings'));
+
+        o = s.option(form.DummyValue, '_service_status', _('current status'));
+        o.rawhtml = true;
+        o.cfgvalue = function() {
+            return '<div id="service-status" style="display:inline-block;"><em class="spinning">' + _('checking...') + '</em></div>';
+        };
+
+        o = s.option(form.DummyValue, '_nft_status', _('active protocols'));
+        o.rawhtml = true;
+        o.cfgvalue = function() {
+            return '<div id="nft-status" style="display:inline-block;">-</div>';
+        };
+
+        o = s.option(form.DummyValue, '_proxy_ip', _('active proxy ip'));
+        o.rawhtml = true;
+        o.cfgvalue = function() {
+            return '<div id="proxy-ip" style="display:inline-block;">-</div>';
+        };
 
         o = s.option(form.Flag, 'enabled', _('enable flowproxy'));
         o.rmempty = false; o.default = '0';
@@ -94,9 +94,12 @@ return L.view.extend({
                     '<span style="color: red; font-weight: bold;">' + _('stopped') + '</span>';
             }
 
-            ['nft-status-row', 'proxy-ip-row'].forEach(function(id) {
+            ['nft-status', 'proxy-ip'].forEach(function(id) {
                 var el = document.getElementById(id);
-                if (el) el.style.display = isRunning ? '' : 'none';
+                if (el) {
+                    var rowEl = el.closest('.cbi-value') || el.parentNode.parentNode;
+                    if (rowEl) rowEl.style.display = isRunning ? '' : 'none';
+                }
             });
 
             if (isRunning) {
