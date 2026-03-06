@@ -7,63 +7,93 @@ config flowproxy 'global'
 	option log_size '1024'
 	option log_count '3'
 
-# 默认规则：跳过本地/广播/组播
-config rule
+# --- TCP 默认规则 ---
+config tcp_rule
 	option name 'skip local (dst)'
-	option protocol 'both'
 	option enabled '1'
 	option match_type 'custom'
 	option match_value 'fib daddr type { local, anycast, multicast }'
 	option action 'return'
 	option counter '0'
 
-# 默认规则：跳过代理服务器自身
-config rule
+config tcp_rule
 	option name 'skip proxy server'
-	option protocol 'both'
 	option enabled '1'
 	option match_type 'src_ip'
 	option match_value '@proxy_server_ip'
 	option action 'return'
 	option counter '0'
 
-# 默认规则：跳过不代理的源MAC
-config rule
+config tcp_rule
 	option name 'skip mac (src)'
-	option protocol 'both'
 	option enabled '1'
 	option match_type 'src_mac'
 	option match_value '@no_proxy_src_mac'
 	option action 'return'
 	option counter '0'
 
-# 默认规则：跳过私有地址
-config rule
+config tcp_rule
 	option name 'skip private (dst)'
-	option protocol 'both'
 	option enabled '1'
 	option match_type 'dst_ip'
 	option match_value '@private_dst_ip_v4'
 	option action 'return'
 	option counter '0'
 
-# 默认规则：跳过中国IP
-config rule
+config tcp_rule
 	option name 'skip china (dst)'
-	option protocol 'both'
 	option enabled '1'
 	option match_type 'dst_ip'
 	option match_value '@chnroute_dst_ip_v4'
 	option action 'return'
 	option counter '0'
 
-# 默认规则：跳过指定TCP端口
-config rule
+config tcp_rule
 	option name 'skip ports (dst)'
-	option protocol 'tcp'
 	option enabled '1'
 	option match_type 'dst_port'
 	option match_value '@no_proxy_dst_tcp_ports'
+	option action 'return'
+	option counter '0'
+
+# --- UDP 默认规则 ---
+config udp_rule
+	option name 'skip local (dst)'
+	option enabled '1'
+	option match_type 'custom'
+	option match_value 'fib daddr type { local, anycast, multicast }'
+	option action 'return'
+	option counter '0'
+
+config udp_rule
+	option name 'skip proxy server'
+	option enabled '1'
+	option match_type 'src_ip'
+	option match_value '@proxy_server_ip'
+	option action 'return'
+	option counter '0'
+
+config udp_rule
+	option name 'skip mac (src)'
+	option enabled '1'
+	option match_type 'src_mac'
+	option match_value '@no_proxy_src_mac'
+	option action 'return'
+	option counter '0'
+
+config udp_rule
+	option name 'skip private (dst)'
+	option enabled '1'
+	option match_type 'dst_ip'
+	option match_value '@private_dst_ip_v4'
+	option action 'return'
+	option counter '0'
+
+config udp_rule
+	option name 'skip china (dst)'
+	option enabled '1'
+	option match_type 'dst_ip'
+	option match_value '@chnroute_dst_ip_v4'
 	option action 'return'
 	option counter '0'
 

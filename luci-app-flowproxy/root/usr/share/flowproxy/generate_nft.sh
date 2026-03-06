@@ -23,7 +23,6 @@ gen_set_definition() {
     type=$(uci -q get "$CONFIG.$section.type")
     [ -z "$type" ] && type="ipv4_addr"
     
-    # 处理特殊预设：私有地址
     if [ "$section" = "private_dst_ip_v4" ]; then
         auto_gen=$(uci -q get "$CONFIG.$section.auto_generate")
         if [ "$auto_gen" = "1" ] || [ -z "$auto_gen" ]; then
@@ -31,7 +30,6 @@ gen_set_definition() {
         fi
     fi
     
-    # 获取 UCI elements 列表
     local uci_elems=""
     for e in $(uci -q get "$CONFIG.$section.elements"); do
         [ -n "$uci_elems" ] && uci_elems="${uci_elems}, "
@@ -39,14 +37,12 @@ gen_set_definition() {
     done
     [ -n "$uci_elems" ] && { [ -n "$elems" ] && elems="${elems}, "; elems="${elems}${uci_elems}"; }
 
-    # 获取外部文件元素
     file_path=$(uci -q get "$CONFIG.$section.file_path")
     if [ -n "$file_path" ] && [ -f "$file_path" ]; then
         local file_elems=$(get_file_elements "$file_path")
         [ -n "$file_elems" ] && { [ -n "$elems" ] && elems="${elems}, "; elems="${elems}${file_elems}"; }
     fi
 
-    # 自动判断 flags interval
     case "$elems" in */*|*-*) is_interval=1 ;; *) is_interval=0 ;; esac
     [ "$type" = "inet_service" ] && is_interval=1
 
@@ -69,20 +65,16 @@ get_file_elements() {
     echo "$elements"
 }
 
-TCP_RULES_TMP="/tmp/flowproxy_tcp_rules.tmp"
-UDP_RULES_TMP="/tmp/flowproxy_udp_rules.tmp"
-echo "" > "$TCP_RULES_TMP"
-echo "" > "$UDP_RULES_TMP"
-
-generate_user_rule() {
+# 规则处理逻辑
+# 参数: 1:section名, 2:协议(tcp/udp)
+process_rule() {
     local section="$1"
-    local enabled protocol match_type match_value action counter
+    local proto="$2"
+    local enabled match_type match_value action counter
     
     enabled=$(uci -q get "$CONFIG.$section.enabled")
     [ "$enabled" = "0" ] && return
     
-    protocol=$(uci -q get "$CONFIG.$section.protocol")
-    [ -z "$protocol" ] && protocol="both"
     match_type=$(uci -q get "$CONFIG.$section.match_type")
     match_value=$(uci -q get "$CONFIG.$section.match_value")
     action=$(uci -q get "$CONFIG.$section.action")
@@ -98,29 +90,26 @@ generate_user_rule() {
             ;;
     esac
 
-    # 清理匹配内容
     match_value=$(echo "$match_value" | sed -E 's/ (return|accept|drop)$//g')
-    local seg_tcp=""
-    local seg_udp=""
+    local segment=""
 
     case "$match_type" in
-        src_mac)  seg_tcp="ip saddr != 0.0.0.0 ether saddr $match_value"; seg_udp="ip saddr != 0.0.0.0 ether saddr $match_value" ;;
-        src_ip)   seg_tcp="ip saddr $match_value"; seg_udp="ip saddr $match_value" ;;
-        dst_ip)   seg_tcp="ip daddr $match_value"; seg_udp="ip daddr $match_value" ;;
-        src_port) seg_tcp="ip protocol tcp tcp sport $match_value"; seg_udp="ip protocol udp udp sport $match_value" ;;
-        dst_port) seg_tcp="ip protocol tcp tcp dport $match_value"; seg_udp="ip protocol udp udp dport $match_value" ;;
-        *)        seg_tcp="ip saddr != 0.0.0.0 $match_value"; seg_udp="ip saddr != 0.0.0.0 $match_value" ;;
+        src_mac)  segment="ip saddr != 0.0.0.0 ether saddr $match_value" ;;
+        src_ip)   segment="ip saddr $match_value" ;;
+        dst_ip)   segment="ip daddr $match_value" ;;
+        src_port) segment="ip protocol $proto $proto sport $match_value" ;;
+        dst_port) segment="ip protocol $proto $proto dport $match_value" ;;
+        *)        segment="ip saddr != 0.0.0.0 $match_value" ;;
     esac
 
-    local line_tcp="$seg_tcp"; [ "$counter" = "1" ] && line_tcp="$line_tcp counter"; line_tcp="$line_tcp $action"
-    local line_udp="$seg_udp"; [ "$counter" = "1" ] && line_udp="$line_udp counter"; line_udp="$line_udp $action"
+    local line="$segment"
+    [ "$counter" = "1" ] && line="$line counter"
+    line="$line $action"
 
     local proxy_ip=$(uci -q get "$CONFIG.global.proxy_ip")
-    line_tcp=$(echo "$line_tcp" | sed "s/@proxy_server_ip/$proxy_ip/g")
-    line_udp=$(echo "$line_udp" | sed "s/@proxy_server_ip/$proxy_ip/g")
+    line=$(echo "$line" | sed "s/@proxy_server_ip/$proxy_ip/g")
 
-    [ "$protocol" = "tcp" ] || [ "$protocol" = "both" ] && echo "        $line_tcp" >> "$TCP_RULES_TMP"
-    [ "$protocol" = "udp" ] || [ "$protocol" = "both" ] && echo "        $line_udp" >> "$UDP_RULES_TMP"
+    echo "        $line"
 }
 
 # --- 开始生成 ---
@@ -129,32 +118,43 @@ cat > "$OUTPUT_FILE" << EOF
 table $NFT_TABLE {
 EOF
 
-# 使用 uci show 遍历，确保感知临时缓存
+# 1. 生成 Set
 for s in $(uci -q show "$CONFIG" | grep "=nftset" | cut -d'.' -f2 | cut -d'=' -f1); do
     gen_set_definition "$s" >> "$OUTPUT_FILE"
 done
 
-for s in $(uci -q show "$CONFIG" | grep "=rule" | cut -d'.' -f2 | cut -d'=' -f1); do
-    generate_user_rule "$s"
-done
-
-TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
+# 2. 构建 TCP 链
 cat >> "$OUTPUT_FILE" << EOF
     chain LAN_MARKFLOW_TCP {
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
-$(cat "$TCP_RULES_TMP")
+EOF
+
+for s in $(uci -q show "$CONFIG" | grep "=tcp_rule" | cut -d'.' -f2 | cut -d'=' -f1); do
+    process_rule "$s" "tcp" >> "$OUTPUT_FILE"
+done
+
+TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
+cat >> "$OUTPUT_FILE" << EOF
         ip protocol tcp meta mark set $TPROXY_MARK
     }
+EOF
 
+# 3. 构建 UDP 链
+cat >> "$OUTPUT_FILE" << EOF
     chain LAN_MARKFLOW_UDP {
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
-$(cat "$UDP_RULES_TMP")
+EOF
+
+for s in $(uci -q show "$CONFIG" | grep "=udp_rule" | cut -d'.' -f2 | cut -d'=' -f1); do
+    process_rule "$s" "udp" >> "$OUTPUT_FILE"
+done
+
+cat >> "$OUTPUT_FILE" << EOF
         ip protocol udp meta mark set $TPROXY_MARK
     }
 }
 EOF
 
-rm -f "$TCP_RULES_TMP" "$UDP_RULES_TMP"
 cat "$OUTPUT_FILE"
