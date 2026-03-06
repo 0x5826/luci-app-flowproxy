@@ -12,7 +12,7 @@ config tcp_rule
 	option name 'skip local (dst)'
 	option enabled '1'
 	option match_type 'custom'
-	option match_value 'fib daddr type { local, anycast, multicast }'
+	option match_value 'fib daddr type { unspec, local, anycast, multicast }'
 	option action 'return'
 	option counter '0'
 
@@ -61,7 +61,7 @@ config udp_rule
 	option name 'skip local (dst)'
 	option enabled '1'
 	option match_type 'custom'
-	option match_value 'fib daddr type { local, anycast, multicast }'
+	option match_value 'fib daddr type { unspec, local, anycast, multicast }'
 	option action 'return'
 	option counter '0'
 
