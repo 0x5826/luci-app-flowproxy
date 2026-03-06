@@ -78,6 +78,9 @@ msgstr "管理分流规则，主要用于定义哪些流量不需要被分流到
 msgid "quick templates"
 msgstr "快捷模版"
 
+msgid "Quick add:"
+msgstr "快速插入预设："
+
 msgid "matching rules"
 msgstr "匹配规则列表"
 

@@ -38,7 +38,9 @@ return L.view.extend({
                 'ports': { name: 'ports (dst)', type: 'dst_port', val: '@no_proxy_dst_tcp_ports' }
             };
 
-            var btnGroup = E('div', { 'style': 'display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;' });
+            var btnGroup = E('div', { 'style': 'display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; align-items: center;' }, [
+                E('small', { 'style': 'margin-right: 5px; color: #888;' }, _('Quick add:'))
+            ]);
             Object.keys(presets).forEach(function(k) {
                 var p = presets[k];
                 // 如果是 UDP 列表，跳过 ports 模版（因为默认是针对 TCP）
