@@ -1,5 +1,7 @@
 config flowproxy 'global'
 	option enabled '0'
+	option tcp_enabled '1'
+	option udp_enabled '1'
 	option proxy_ip ''
 	option interface 'br-lan'
 	option tproxy_mark '100'

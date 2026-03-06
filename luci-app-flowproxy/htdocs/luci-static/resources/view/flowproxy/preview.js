@@ -17,9 +17,14 @@ var callGetRuntimeConfig = rpc.declare({
 
 return L.view.extend({
     load: function() {
+        // 极致稳定性修复：严格串行执行生命周期
+        // 1. 同步内存更改到 /tmp/.uci
         return uci.save().then(function() {
+            // 2. 加载最新的缓存配置
+            return uci.load('flowproxy');
+        }).then(function() {
+            // 3. 同时发起后端生成和运行时探测
             return Promise.all([
-                uci.load('flowproxy'),
                 callGenerateNftConfig(),
                 callGetRuntimeConfig()
             ]);
@@ -37,29 +42,25 @@ return L.view.extend({
             { rex: /@[\w_]+/g, cls: 'variable' },
             { rex: /\{|\}/g, cls: 'bracket' }
         ];
-
         var html = text.replace(/[&<>"']/g, function(m) {
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
         });
-
         rules.forEach(function(r) {
             html = html.replace(r.rex, function(match) {
                 return '<span class="nft-' + r.cls + '">' + match + '</span>';
             });
         });
-
         return html;
     },
 
     render: function(data) {
-        var genConfig = (data[1] && data[1].config) ? data[1].config : '';
-        var runConfig = (data[2] && data[2].runtime) ? data[2].runtime : '';
+        var genConfig = (data[0] && data[0].config) ? data[0].config : '';
+        var runConfig = (data[1] && data[1].runtime) ? data[1].runtime : '';
         var m, s, o;
 
-        m = new form.Map('flowproxy', _('flowproxy - preview'),
+        m = new form.Map('flowproxy', _('flowproxy - preview & debug'),
             _('view the generated configuration and live kernel state.'));
 
-        // 注入强制白底高亮 CSS
         var style = E('style', {}, `
             .nft-code-view { 
                 background: #ffffff !important; 
@@ -90,7 +91,6 @@ return L.view.extend({
         s.tab('generated', _('generated config'));
         s.tab('runtime', _('live runtime state'));
 
-        // Tab 1: 生成的配置
         o = s.taboption('generated', form.SectionValue, '_gen_val', form.NamedSection, 'global', 'flowproxy');
         o.subsection.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
@@ -104,7 +104,6 @@ return L.view.extend({
             ]);
         }, this);
 
-        // Tab 2: 内核实时状态
         o = s.taboption('runtime', form.SectionValue, '_run_val', form.NamedSection, 'global', 'flowproxy');
         o.subsection.render = L.bind(function() {
             return E('div', { 'class': 'cbi-section-node' }, [
@@ -119,7 +118,6 @@ return L.view.extend({
         }, this);
 
         return m.render().then(L.bind(function(node) {
-            // 在页面完全加载及 Tab 可能切换后，确保内容注入
             var self = this;
             var updateContent = function() {
                 var genEl = document.getElementById('gen-code');
@@ -127,15 +125,10 @@ return L.view.extend({
                 var runEl = document.getElementById('run-code');
                 if (runEl) runEl.innerHTML = self.highlightNft(runConfig);
             };
-
-            // 初次注入
             setTimeout(updateContent, 100);
-            
-            // 额外针对 Tab 切换做监听，确保内容在 Tab 切换时依然存在（LuCI 的 Tab 有时会重绘）
             node.addEventListener('cbi-tab-active', function() {
                 setTimeout(updateContent, 50);
             });
-
             return node;
         }, this));
     }
