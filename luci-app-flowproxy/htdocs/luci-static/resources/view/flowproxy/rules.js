@@ -83,7 +83,8 @@ return L.view.extend({
                             E('span', {}, title),
                             E('div', { 'style': 'font-size: 0.8em; font-weight: normal; display: inline-flex; align-items: center; gap: 5px; color: #666;' }, [
                                 (function() {
-                                    var is_enabled = (uci.get('flowproxy', 'global', switch_option) === '1');
+                                    var val = uci.get('flowproxy', 'global', switch_option);
+                                    var is_enabled = (val === '1' || val == null);
                                     return E('input', {
                                         'type': 'checkbox',
                                         'style': 'width: 16px; height: 18px; cursor: pointer;',
