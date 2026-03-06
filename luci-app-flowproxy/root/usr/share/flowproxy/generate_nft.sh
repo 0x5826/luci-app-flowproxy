@@ -25,7 +25,9 @@ gen_set_definition() {
     [ -z "$type" ] && type="ipv4_addr"
     if [ "$section" = "private_dst_ip_v4" ]; then
         auto_gen=$(uci -q get "$CONFIG.$section.auto_generate")
-        [ "$auto_gen" = "1" ] || [ -z "$auto_gen" ] && elems="10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16"
+        if [ "$auto_gen" = "1" ] || [ -z "$auto_gen" ]; then
+            elems="10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16"
+        fi
     fi
     local uci_elems=""
     for e in $(uci -q get "$CONFIG.$section.elements"); do [ -n "$uci_elems" ] && uci_elems="${uci_elems}, "; uci_elems="${uci_elems}${e}"; done
@@ -91,14 +93,18 @@ for s in $(uci -q show "$CONFIG" | grep "=nftset" | cut -d'.' -f2 | cut -d'=' -f
 TCP_ENABLED=$(uci -q get "$CONFIG.global.tcp_enabled" || echo "1")
 UDP_ENABLED=$(uci -q get "$CONFIG.global.udp_enabled" || echo "1")
 TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
+PROXY_IP=$(uci -q get "$CONFIG.global.proxy_ip")
 
-# 只有在启用时才生成 TCP 链
+# 构建 TCP 链
 if [ "$TCP_ENABLED" = "1" ]; then
     cat >> "$OUTPUT_FILE" << EOF
     chain LAN_MARKFLOW_TCP {
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
 EOF
+    # 内置规则：跳过代理服务器自身发出的流量 (Anti-Loop)
+    [ -n "$PROXY_IP" ] && echo "        ip saddr $PROXY_IP ip protocol tcp counter return" >> "$OUTPUT_FILE"
+    
     for s in $(uci -q show "$CONFIG" | grep "=tcp_rule" | cut -d'.' -f2 | cut -d'=' -f1); do
         process_rule "$s" "tcp" >> "$OUTPUT_FILE"
     done
@@ -106,13 +112,16 @@ EOF
     echo "    }" >> "$OUTPUT_FILE"
 fi
 
-# 只有在启用时才生成 UDP 链
+# 构建 UDP 链
 if [ "$UDP_ENABLED" = "1" ]; then
     cat >> "$OUTPUT_FILE" << EOF
     chain LAN_MARKFLOW_UDP {
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
 EOF
+    # 内置规则：跳过代理服务器自身发出的流量 (Anti-Loop)
+    [ -n "$PROXY_IP" ] && echo "        ip saddr $PROXY_IP ip protocol udp counter return" >> "$OUTPUT_FILE"
+
     for s in $(uci -q show "$CONFIG" | grep "=udp_rule" | cut -d'.' -f2 | cut -d'=' -f1); do
         process_rule "$s" "udp" >> "$OUTPUT_FILE"
     done

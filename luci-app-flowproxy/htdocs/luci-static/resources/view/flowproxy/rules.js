@@ -19,14 +19,13 @@ return L.view.extend({
         nftsets.push('@proxy_server_ip');
 
         m = new form.Map('flowproxy', _('flowproxy - rules'),
-            _('define nftables rules. separate lists for TCP and UDP flows.'));
+            _('define nftables rules. separate lists for TCP and UDP flows. internal loop prevention is applied automatically.'));
 
         // 1. 快捷模板区域
         s = m.section(form.NamedSection, '_templates', 'flowproxy', _('quick templates'));
         s.render = L.bind(function() {
             var presets = {
                 'local': { name: 'local (dst)', type: 'custom', val: 'fib daddr type { unspec, local, anycast, multicast }' },
-                'proxy': { name: 'proxy srv', type: 'src_ip', val: '@proxy_server_ip' },
                 'priv': { name: 'private (dst)', type: 'dst_ip', val: '@private_dst_ip_v4' },
                 'china': { name: 'china (dst)', type: 'dst_ip', val: '@chnroute_dst_ip_v4' },
                 'src_ip': { name: 'ip (src)', type: 'src_ip', val: '@no_proxy_src_ip_v4' },
@@ -60,6 +59,11 @@ return L.view.extend({
             }, this);
             return container;
         }, this);
+
+        // 2. 总开关承载（隐藏渲染）
+        var master_s = m.section(form.NamedSection, 'global', 'flowproxy');
+        master_s.option(form.Flag, 'tcp_enabled', _('enable TCP matching rules'));
+        master_s.option(form.Flag, 'udp_enabled', _('enable UDP matching rules'));
 
         // 辅助函数：创建标题带手动开关的规则表格
         var renderTable = L.bind(function(map, type, title, switch_option) {
@@ -110,7 +114,6 @@ return L.view.extend({
                             uci.sections('flowproxy', type).forEach(function(r) { uci.remove('flowproxy', r['.name']); });
                             var defs = [
                                 { n: 'skip local (dst)', t: 'custom', v: 'fib daddr type { unspec, local, anycast, multicast }' },
-                                { n: 'skip proxy server', t: 'src_ip', v: '@proxy_server_ip' },
                                 { n: 'skip mac (src)', t: 'src_mac', v: '@no_proxy_src_mac' },
                                 { n: 'skip private (dst)', t: 'dst_ip', v: '@private_dst_ip_v4' },
                                 { n: 'skip china (dst)', t: 'dst_ip', v: '@chnroute_dst_ip_v4' }

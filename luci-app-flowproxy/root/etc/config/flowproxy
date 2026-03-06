@@ -19,14 +19,6 @@ config tcp_rule
 	option counter '0'
 
 config tcp_rule
-	option name 'skip proxy server'
-	option enabled '1'
-	option match_type 'src_ip'
-	option match_value '@proxy_server_ip'
-	option action 'return'
-	option counter '0'
-
-config tcp_rule
 	option name 'skip mac (src)'
 	option enabled '1'
 	option match_type 'src_mac'
@@ -64,14 +56,6 @@ config udp_rule
 	option enabled '1'
 	option match_type 'custom'
 	option match_value 'fib daddr type { unspec, local, anycast, multicast }'
-	option action 'return'
-	option counter '0'
-
-config udp_rule
-	option name 'skip proxy server'
-	option enabled '1'
-	option match_type 'src_ip'
-	option match_value '@proxy_server_ip'
 	option action 'return'
 	option counter '0'
 
