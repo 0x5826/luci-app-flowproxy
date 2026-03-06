@@ -54,14 +54,14 @@ return L.view.extend({
             uci.load('flowproxy').catch(function() { return {}; }),
             callGetStatus().catch(function() { return {}; }),
             callGetNftStatus().catch(function() { return {}; }),
-            callGetInterfaces().catch(function() { return []; })
+            callGetInterfaces().catch(function() { return { interfaces: [] }; })
         ]);
     },
 
     render: function(data) {
         var status = data[1] || {};
         var nftStatus = data[2] || {};
-        var interfaces = Array.isArray(data[3]) ? data[3] : [];
+        var interfaces = (data[3] && Array.isArray(data[3].interfaces)) ? data[3].interfaces : [];
         var m, s, o;
 
         m = new form.Map('flowproxy', _('FlowProxy'),
@@ -232,9 +232,10 @@ return L.view.extend({
     refreshLogs: function() {
         callGetLogs(200).then(L.bind(function(data) {
             var logEl = document.getElementById('log-content');
+            var logs = (data && Array.isArray(data.logs)) ? data.logs : [];
             if (logEl) {
-                if (data && data.length > 0) {
-                    logEl.value = data.join('\n');
+                if (logs.length > 0) {
+                    logEl.value = logs.join('\n');
                     logEl.scrollTop = logEl.scrollHeight;
                 } else {
                     logEl.value = _('No logs available');

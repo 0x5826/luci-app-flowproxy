@@ -1,7 +1,6 @@
-#!/usr/bin/ucode
 'use strict';
 
-import { access, readfile, writefile, stat, lsdir } from 'fs';
+import { access, readfile, writefile, lsdir } from 'fs';
 import { cursor } from 'uci';
 import { connect } from 'ubus';
 
@@ -11,8 +10,8 @@ const NFT_TABLE = 'flowproxy';
 
 function uci_get_config(section, option, default_val) {
     try {
-        let cursor_ = cursor();
-        let value = cursor_.get(UCI_CONFIG, section, option);
+        let uci_cursor = cursor();
+        let value = uci_cursor.get(UCI_CONFIG, section, option);
         return value || default_val || '';
     } catch (e) {
         return default_val || '';
@@ -27,11 +26,11 @@ function check_nft_chain(chain) {
 const methods = {
     get_status: {
         call: function() {
-            let enabled = int(uci_get_config('global', 'enabled', '0')) || 0;
+            let enabled = uci_get_config('global', 'enabled', '0');
             let running = check_nft_chain('LAN_MARKFLOW_TCP') ? 1 : 0;
 
             return {
-                enabled: enabled,
+                enabled: int(enabled),
                 running: running,
                 proxy_ip: uci_get_config('global', 'proxy_ip', ''),
                 interface: uci_get_config('global', 'interface', 'br-lan'),
@@ -51,8 +50,8 @@ const methods = {
 
     get_logs: {
         args: { lines: 100 },
-        call: function(req) {
-            let lines = req.args?.lines ?? 100;
+        call: function(request) {
+            let lines = request.args?.lines ?? 100;
             let logs = [];
 
             try {
@@ -71,7 +70,7 @@ const methods = {
                 }
             } catch (e) {}
 
-            return logs;
+            return { logs };
         }
     },
 
@@ -79,9 +78,9 @@ const methods = {
         call: function() {
             try {
                 writefile(LOG_FILE, '');
-                return true;
+                return { result: true };
             } catch (e) {
-                return false;
+                return { result: false };
             }
         }
     },
@@ -91,11 +90,10 @@ const methods = {
             let interfaces = [];
             let seen = {};
 
-            // 1. 尝试通过 ubus 获取
             try {
                 let ubus_conn = connect();
                 if (ubus_conn) {
-                    let result = ubus_conn.call('network.interface', 'dump', {});
+                    let result = ubus_conn.call('network.interface', 'dump');
                     if (result && result.interface) {
                         for (let iface in result.interface) {
                             if (iface && iface.device && !seen[iface.device]) {
@@ -108,56 +106,53 @@ const methods = {
                 }
             } catch (e) {}
 
-            // 2. 兜底方案：如果 ubus 为空，尝试读取系统接口目录
-            if (length(interfaces) === 0) {
+            if (length(interfaces) == 0) {
                 try {
                     let devs = lsdir('/sys/class/net');
-                    if (devs) {
-                        for (let dev in devs) {
-                            if (dev != '.' && dev != '..' && dev != 'lo' && !seen[dev]) {
-                                seen[dev] = true;
-                                push(interfaces, { name: dev, mac: '' });
-                            }
+                    for (let dev in devs) {
+                        if (dev != '.' && dev != '..' && dev != 'lo' && !seen[dev]) {
+                            seen[dev] = true;
+                            push(interfaces, { name: dev, mac: '' });
                         }
                     }
                 } catch (e) {}
             }
 
-            return interfaces;
+            return { interfaces };
         }
     },
 
     start_service: {
         call: function() {
             let ret = system('/etc/init.d/flowproxy start >/dev/null 2>&1');
-            return (ret === 0);
+            return { result: (ret === 0) };
         }
     },
 
     stop_service: {
         call: function() {
             let ret = system('/etc/init.d/flowproxy stop >/dev/null 2>&1');
-            return (ret === 0);
+            return { result: (ret === 0) };
         }
     },
 
     restart_service: {
         call: function() {
             let ret = system('/etc/init.d/flowproxy restart >/dev/null 2>&1');
-            return (ret === 0);
+            return { result: (ret === 0) };
         }
     },
 
     generate_nft_config: {
         call: function() {
-            let ret = system('/usr/share/flowproxy/generate_nft.sh >/dev/null 2>&1');
+            system('/usr/share/flowproxy/generate_nft.sh >/dev/null 2>&1');
             try {
                 if (access('/tmp/flowproxy_nft.conf', 'r')) {
                     let content = readfile('/tmp/flowproxy_nft.conf');
-                    if (content) return trim(content);
+                    if (content) return { config: trim(content) };
                 }
             } catch (e) {}
-            return '';
+            return { config: '' };
         }
     }
 };
