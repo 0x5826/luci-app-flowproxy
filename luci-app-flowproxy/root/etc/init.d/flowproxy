@@ -113,13 +113,18 @@ start_service() {
     touch "$STATE_FILE"
     log_msg info "FlowProxy service started successfully"
 }
-
 stop_service() {
     log_msg info "Stopping FlowProxy..."
+    # 强制先移除标记，防止状态误报
+    rm -f "$STATE_FILE"
     delete_route
     delete_nft
-    rm -f "$STATE_FILE"
     log_msg info "FlowProxy service stopped"
+}
+
+restart_service() {
+    stop_service
+    start_service
 }
 
 service_triggers() {
