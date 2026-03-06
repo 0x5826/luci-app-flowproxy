@@ -18,59 +18,93 @@ get_config() {
 
 # 辅助函数：生成 set 定义
 gen_set_definition() {
-    local section="$1"
-    local type enabled auto_gen file_path elems is_interval
-    
-    enabled=$(uci -q get "$CONFIG.$section.enabled")
-    [ "$enabled" = "0" ] && return
+	local section="$1"
+	local type enabled auto_gen file_path elems is_interval
+	
+	enabled=$(uci -q get "$CONFIG.$section.enabled")
+	[ "$enabled" = "0" ] && return
 
-    ENABLED_SETS="${ENABLED_SETS}@${section} "
-    type=$(uci -q get "$CONFIG.$section.type")
-    [ -z "$type" ] && type="ipv4_addr"
-    
-    if [ "$section" = "private_dst_ip_v4" ]; then
-        auto_gen=$(uci -q get "$CONFIG.$section.auto_generate")
-        if [ "$auto_gen" = "1" ] || [ -z "$auto_gen" ]; then
-            elems="10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16"
-        fi
-    fi
-    
-    local uci_elems=""
-    for e in $(uci -q get "$CONFIG.$section.elements"); do
-        [ -n "$uci_elems" ] && uci_elems="${uci_elems}, "
-        uci_elems="${uci_elems}${e}"
-    done
-    [ -n "$uci_elems" ] && { [ -n "$elems" ] && elems="${elems}, "; elems="${elems}${uci_elems}"; }
+	ENABLED_SETS="${ENABLED_SETS}@${section} "
+	type=$(uci -q get "$CONFIG.$section.type")
+	[ -z "$type" ] && type="ipv4_addr"
+	
+	if [ "$section" = "private_dst_ip_v4" ]; then
+		auto_gen=$(uci -q get "$CONFIG.$section.auto_generate")
+		if [ "$auto_gen" = "1" ] || [ -z "$auto_gen" ]; then
+			elems="10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16"
+		fi
+	fi
+	
+	local uci_elems=""
+	for e in $(uci -q get "$CONFIG.$section.elements"); do
+		[ -n "$uci_elems" ] && uci_elems="${uci_elems}, "
+		uci_elems="${uci_elems}${e}"
+	done
+	[ -n "$uci_elems" ] && { [ -n "$elems" ] && elems="${elems}, "; elems="${elems}${uci_elems}"; }
 
-    file_path=$(uci -q get "$CONFIG.$section.file_path")
-    if [ -n "$file_path" ] && [ -f "$file_path" ]; then
-        local file_elems=$(get_file_elements "$file_path")
-        if [ -n "$file_elems" ]; then
-            [ -n "$elems" ] && elems="${elems}, "
-            elems="${elems}${file_elems}"
-        fi
-    fi
+	file_path=$(uci -q get "$CONFIG.$section.file_path")
+	download_url=$(uci -q get "$CONFIG.$section.download_url")
+	if [ -n "$download_url" ] && [ -n "$file_path" ]; then
+		if [ ! -f "$file_path" ]; then
+			echo "Downloading $section data from $download_url to $file_path..." >&2
+			wget -q -O "$file_path" "$download_url" --timeout=10 --no-check-certificate
+			[ $? -ne 0 ] && { echo "Failed to download $section data" >&2; rm -f "$file_path"; }
+		fi
+	fi
 
-    case "$type" in "ipv4_addr"|"inet_service"|"ether_addr") is_interval=1 ;; *) is_interval=0 ;; esac
-    [ "$is_interval" = "0" ] && { case "$elems" in */*|*-*) is_interval=1 ;; esac; }
+	if [ -n "$file_path" ] && [ -f "$file_path" ]; then
+		local file_elems=$(get_file_elements "$file_path")
+		if [ -n "$file_elems" ]; then
+			[ -n "$elems" ] && elems="${elems}, "
+			elems="${elems}${file_elems}"
+		fi
+	fi
 
-    printf "    set %s {\n" "$section"
-    printf "        type %s\n" "$type"
-    [ "$is_interval" = "1" ] && printf "        flags interval\n"
-    [ -n "$elems" ] && printf "        elements = { %s }\n" "$elems"
-    printf "    }\n\n"
+	case "$type" in "ipv4_addr"|"inet_service"|"ether_addr") is_interval=1 ;; *) is_interval=0 ;; esac
+	[ "$is_interval" = "0" ] && { case "$elems" in */*|*-*) is_interval=1 ;; esac; }
+
+	printf "\tset %s {\n" "$section"
+	printf "\t\ttype %s\n" "$type"
+	[ "$is_interval" = "1" ] && printf "\t\tflags interval\n"
+	[ -n "$elems" ] && printf "\t\telements = { %s }\n" "$elems"
+	printf "\t}\n\n"
 }
 
 get_file_elements() {
-    local file_path="$1"
-    local elements=""
-    [ ! -f "$file_path" ] && return
-    while IFS= read -r line; do
-        case "$line" in ''|\#*) continue ;; esac
-        [ -n "$elements" ] && elements="${elements}, "
-        elements="${elements}${line}"
-    done < "$file_path"
-    echo "$elements"
+	local file_path="$1"
+	[ ! -f "$file_path" ] && return
+
+	# 如果设置了 PREVIEW 环境变量，则只取前 100 行，避免预览页面卡死
+	if [ "$FLOWPROXY_PREVIEW" = "1" ]; then
+		local total=$(wc -l < "$file_path")
+		if [ "$total" -gt 100 ]; then
+			awk 'BEGIN { count=0 } 
+				!/^($|#)/ { 
+					if (count < 100) {
+						if (count > 0) {
+							printf ", "
+							if (count % 2 == 0) printf "\n\t\t\t     "
+						}
+						printf "%s", $0
+						count++
+					}
+				} 
+				END { printf ", ... (%d more items omitted for preview)", '"$total"'-100 }' "$file_path"
+			return
+		fi
+	fi
+
+	# 正常模式：使用 awk 快速拼接
+	awk 'BEGIN { count=0 } 
+		!/^($|#)/ { 
+			if (count > 0) {
+				printf ", "
+				if (count % 2 == 0) printf "\n\t\t\t     "
+			}
+			printf "%s", $0
+			count++
+		} 
+		END { print "" }' "$file_path"
 }
 
 process_rule() {
@@ -113,6 +147,25 @@ process_rule() {
 SECTIONS_SET=$(uci -q show "$CONFIG" | grep "=nftset" | cut -d'.' -f2 | cut -d'=' -f1)
 SECTIONS_TCP=$(uci -q show "$CONFIG" | grep "=tcp_rule" | cut -d'.' -f2 | cut -d'=' -f1)
 SECTIONS_UDP=$(uci -q show "$CONFIG" | grep "=udp_rule" | cut -d'.' -f2 | cut -d'=' -f1)
+
+# --- 运行时状态输出 (用于预览页面) ---
+if [ "$1" = "runtime" ]; then
+	TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
+	echo "--- [ nftables live rules ] ---"
+	# 使用 awk 截断过长的 set 元素显示
+	nft list table inet "$CONFIG" 2>/dev/null | awk 'BEGIN { count=0; skip=0 } 
+		/elements = \{/ { print $0; skip=1; next } 
+		skip == 1 && /\}/ { printf "\t\t\t     ... (items truncated for preview)\n"; print $0; skip=0; next } 
+		skip == 1 { count++; if (count < 20) print $0; next } 
+		{ print $0 }' || echo "(table not found)"
+	echo ""
+	echo "--- [ ip rule list ] ---"
+	ip rule show 2>/dev/null
+	echo ""
+	echo "--- [ ip route table $TPROXY_MARK ] ---"
+	ip route show table "$TPROXY_MARK" 2>/dev/null || echo "(table empty)"
+	exit 0
+fi
 
 # --- 开始生成 ---
 cat > "$OUTPUT_FILE" << EOF

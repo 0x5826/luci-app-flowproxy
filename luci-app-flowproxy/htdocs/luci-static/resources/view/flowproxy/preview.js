@@ -71,7 +71,8 @@ return L.view.extend({
                 font-size: 13px !important; 
                 line-height: 1.6 !important; 
                 overflow-x: auto !important; 
-                white-space: pre !important; 
+                white-space: pre-wrap !important; 
+                word-break: break-all !important;
                 width: 100% !important; 
                 border: 1px solid #eeeeee !important;
                 display: block !important;

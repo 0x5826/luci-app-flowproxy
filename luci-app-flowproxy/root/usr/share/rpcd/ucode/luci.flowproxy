@@ -87,18 +87,15 @@ const methods = {
 
     generate_nft_config: {
         call: function() {
-            system('UCI_CONFIG_DIR=/tmp/.uci /usr/share/flowproxy/generate_nft.sh > /tmp/flowproxy_nft.conf 2>&1');
+            system('FLOWPROXY_PREVIEW=1 UCI_CONFIG_DIR=/tmp/.uci /usr/share/flowproxy/generate_nft.sh > /tmp/flowproxy_nft.conf 2>&1');
             return { config: safe_trim(readfile('/tmp/flowproxy_nft.conf') || '') };
         }
     },
 
     get_runtime_config: {
         call: function() {
-            let uci_cursor = cursor();
-            let mark = uci_cursor.get(UCI_CONFIG, 'global', 'tproxy_mark') || '100';
             let res_file = '/tmp/flowproxy_runtime.tmp';
-            let cmd = '( echo "--- [ nftables live rules ] ---"; nft list table inet ' + NFT_TABLE + ' 2>/dev/null || echo "(table not found)"; echo ""; echo "--- [ ip rule list ] ---"; ip rule show 2>/dev/null; echo ""; echo "--- [ ip route table ' + mark + ' ] ---"; ip route show table ' + mark + ' 2>/dev/null || echo "(table empty)"; ) > ' + res_file;
-            system(cmd);
+            system('/usr/share/flowproxy/generate_nft.sh runtime > ' + res_file + ' 2>&1');
             let result = readfile(res_file) || "(failed)";
             system('rm -f ' + res_file);
             return { runtime: safe_trim(result) };

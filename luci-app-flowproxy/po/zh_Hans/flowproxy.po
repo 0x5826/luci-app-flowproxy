@@ -163,6 +163,36 @@ msgstr "自动生成"
 msgid "file_path"
 msgstr "文件路径"
 
+msgid "download_url"
+msgstr "下载 URL"
+
+msgid "update chnroute"
+msgstr "立即更新数据集"
+
+msgid "Downloading chnroute data..."
+msgstr "正在下载数据集..."
+
+msgid "Chnroute data updated successfully."
+msgstr "数据集更新成功。"
+
+msgid "Please set download_url first"
+msgstr "请先设置下载 URL"
+
+msgid "Download failed"
+msgstr "下载失败"
+
+msgid "file lines count"
+msgstr "文件行数统计"
+
+msgid "lines"
+msgstr "行"
+
+msgid "file not found"
+msgstr "文件不存在"
+
+msgid "n/a"
+msgstr "不可用"
+
 # Preview & Debug
 msgid "flowproxy - preview"
 msgstr "代理分流 - 配置预览"
