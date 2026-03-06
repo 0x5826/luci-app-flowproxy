@@ -1,83 +1,70 @@
 'use strict';
 
-import { access, readfile, writefile, lsdir } from 'fs';
+import { access, readfile, writefile, stat } from 'fs';
 import { cursor } from 'uci';
 import { connect } from 'ubus';
 
 const UCI_CONFIG = 'flowproxy';
-const LOG_FILE = '/var/log/flowproxy.log';
 const STATE_FILE = '/var/run/flowproxy.running';
+const IP_CACHE = '/tmp/flowproxy_lan_ip.cache';
+const LOG_FILE = '/var/log/flowproxy.log';
 const NFT_TABLE = 'flowproxy';
-
-// 缓存 LAN IP 减少 ubus 调用
-let cached_lan_ip = null;
-
-function uci_get_config(section, option, default_val) {
-    try {
-        let uci_cursor = cursor();
-        let value = uci_cursor.get(UCI_CONFIG, section, option);
-        return value || default_val || '';
-    } catch (e) { return default_val || ''; }
-}
 
 const methods = {
     get_status: {
         call: function() {
-            // 极速探测：只做文件检查
-            let is_running = access(STATE_FILE, 'f');
+            // 1. 极致性能：如果标记文件存在，直接返回运行中，不进行任何 UCI/Ubus 操作
+            if (access(STATE_FILE, 'f')) {
+                let lan_ip = readfile(IP_CACHE) || '';
+                return { running: 1, enabled: 1, lan_ip: trim(lan_ip) };
+            }
             
-            // 只有文件不存在时才做一次自愈检查
-            if (!is_running) {
-                if (system('nft list table inet ' + NFT_TABLE + ' >/dev/null 2>&1') === 0) {
-                    is_running = true;
-                    try { writefile(STATE_FILE, ''); } catch(e) {}
-                }
+            // 2. 只有没标记时才进行慢检测
+            let is_running = false;
+            if (system('nft list table inet ' + NFT_TABLE + ' >/dev/null 2>&1') === 0) {
+                is_running = true;
+                writefile(STATE_FILE, '');
             }
 
-            // LAN IP 获取逻辑优化：仅在缓存为空时获取
-            if (!cached_lan_ip) {
-                try {
-                    let ubus_conn = connect();
-                    if (ubus_conn) {
-                        let lan_status = ubus_conn.call('network.interface.lan', 'status');
-                        if (lan_status?.['ipv4-address']?.[0]) {
-                            cached_lan_ip = lan_status['ipv4-address'][0].address;
-                        }
-                        ubus_conn.disconnect();
+            let uci_cursor = cursor();
+            let enabled = uci_cursor.get(UCI_CONFIG, 'global', 'enabled') || '0';
+            let proxy_ip = uci_cursor.get(UCI_CONFIG, 'global', 'proxy_ip') || '';
+            let lan_ip = '';
+
+            try {
+                let ubus_conn = connect();
+                if (ubus_conn) {
+                    let lan_status = ubus_conn.call('network.interface.lan', 'status');
+                    if (lan_status?.['ipv4-address']?.[0]) {
+                        lan_ip = lan_status['ipv4-address'][0].address;
+                        writefile(IP_CACHE, lan_ip); // 缓存 IP
                     }
-                } catch (e) {}
-            }
+                    ubus_conn.disconnect();
+                }
+            } catch (e) {}
 
             return {
                 running: is_running ? 1 : 0,
-                enabled: int(uci_get_config('global', 'enabled', '0')),
-                proxy_ip: uci_get_config('global', 'proxy_ip', ''),
-                lan_ip: cached_lan_ip || '',
-                interface: uci_get_config('global', 'interface', 'br-lan'),
-                tproxy_mark: uci_get_config('global', 'tproxy_mark', '100'),
+                enabled: int(enabled),
+                proxy_ip: proxy_ip,
+                lan_ip: lan_ip,
                 nft: { tcp: is_running ? 1 : 0, udp: is_running ? 1 : 0 }
             };
         }
     },
-get_logs: {
-    args: { lines: 100 },
-    call: function(request) {
-        let lines = request.args?.lines ?? 100;
-        let logs = [];
-        try {
-            if (access(LOG_FILE, 'r')) {
-                // 增加安全检测：只读取最后 64KB 内容，防止内存溢出
-                let log_stat = stat(LOG_FILE);
-                let content = "";
-                if (log_stat && log_stat.size > 65536) {
-                    content = readfile(popen('tail -c 65536 ' + LOG_FILE));
-                } else {
-                    content = readfile(LOG_FILE);
-                }
 
-                if (content) {
-                    let log_lines = split(content, "\n");
-...
+    get_logs: {
+        args: { lines: 100 },
+        call: function(request) {
+            let lines = request.args?.lines ?? 100;
+            let logs = [];
+            try {
+                if (access(LOG_FILE, 'r')) {
+                    let log_stat = stat(LOG_FILE);
+                    let content = (log_stat && log_stat.size > 65536) ? 
+                        readfile(popen('tail -c 65536 ' + LOG_FILE)) : readfile(LOG_FILE);
+                    if (content) {
+                        let log_lines = split(content, "\n");
                         let total = length(log_lines);
                         let start = (total > lines) ? (total - lines) : 0;
                         for (let i = start; i < total; i++) {
@@ -90,45 +77,43 @@ get_logs: {
         }
     },
 
-    clear_logs: {
+    generate_nft_config: {
         call: function() {
-            try {
-                writefile(LOG_FILE, '');
-                return { result: true };
-            } catch (e) { return { result: false }; }
+            // 修正预览：强制指定 UCI 缓存目录并调用生成脚本
+            system('UCI_CONFIG_DIR=/tmp/.uci /usr/share/flowproxy/generate_nft.sh > /tmp/flowproxy_nft.conf 2>&1');
+            let content = readfile('/tmp/flowproxy_nft.conf') || '';
+            return { config: trim(content) };
+        }
+    },
+
+    get_runtime_config: {
+        call: function() {
+            let uci_cursor = cursor();
+            let mark = uci_cursor.get(UCI_CONFIG, 'global', 'tproxy_mark') || '100';
+            let res_file = '/tmp/flowproxy_runtime.tmp';
+            let cmd = '( echo "--- [ nftables live rules ] ---"; nft list table inet ' + NFT_TABLE + ' 2>/dev/null || echo "(table not found)"; echo ""; echo "--- [ ip rule list ] ---"; ip rule show 2>/dev/null; echo ""; echo "--- [ ip route table ' + mark + ' ] ---"; ip route show table ' + mark + ' 2>/dev/null || echo "(table empty)"; ) > ' + res_file;
+            system(cmd);
+            let result = readfile(res_file) || "(failed)";
+            system('rm -f ' + res_file);
+            return { runtime: trim(result) };
         }
     },
 
     get_interfaces: {
         call: function() {
             let interfaces = [];
-            let seen = {};
             try {
                 let ubus_conn = connect();
                 if (ubus_conn) {
                     let result = ubus_conn.call('network.interface', 'dump');
                     if (result?.interface) {
                         for (let iface in result.interface) {
-                            if (iface?.device && !seen[iface.device]) {
-                                seen[iface.device] = true;
-                                push(interfaces, { name: iface.device, mac: '' });
-                            }
+                            if (iface?.device) push(interfaces, { name: iface.device });
                         }
                     }
                     ubus_conn.disconnect();
                 }
             } catch (e) {}
-            if (length(interfaces) == 0) {
-                try {
-                    let devs = lsdir('/sys/class/net');
-                    for (let dev in devs) {
-                        if (dev != '.' && dev != '..' && dev != 'lo' && !seen[dev]) {
-                            seen[dev] = true;
-                            push(interfaces, { name: dev, mac: '' });
-                        }
-                    }
-                } catch (e) {}
-            }
             return { interfaces };
         }
     },
@@ -136,36 +121,7 @@ get_logs: {
     start_service: { call: function() { return { result: (system('/etc/init.d/flowproxy start >/dev/null 2>&1') === 0) }; } },
     stop_service: { call: function() { return { result: (system('/etc/init.d/flowproxy stop >/dev/null 2>&1') === 0) }; } },
     restart_service: { call: function() { return { result: (system('/etc/init.d/flowproxy restart >/dev/null 2>&1') === 0) }; } },
-
-    generate_nft_config: {
-        call: function() {
-            system('UCI_CONFIG_DIR=/tmp/.uci /usr/share/flowproxy/generate_nft.sh >/dev/null 2>&1');
-            try {
-                if (access('/tmp/flowproxy_nft.conf', 'r')) {
-                    let content = readfile('/tmp/flowproxy_nft.conf');
-                    if (content) return { config: trim(content) };
-                }
-            } catch (e) {}
-            return { config: '' };
-        }
-    },
-
-    get_runtime_config: {
-        call: function() {
-            let mark = uci_get_config('global', 'tproxy_mark', '100');
-            let res_file = '/tmp/flowproxy_runtime.tmp';
-            let cmd = '( echo "--- [ nftables live rules ] ---"; nft list table inet ' + NFT_TABLE + ' 2>/dev/null || echo "(table not found)"; echo ""; echo "--- [ ip rule list ] ---"; ip rule show 2>/dev/null; echo ""; echo "--- [ ip route table ' + mark + ' ] ---"; ip route show table ' + mark + ' 2>/dev/null || echo "(table empty)"; ) > ' + res_file;
-            system(cmd);
-            let result = "";
-            try {
-                if (access(res_file, 'r')) {
-                    result = readfile(res_file);
-                    system('rm -f ' + res_file);
-                }
-            } catch (e) {}
-            return { runtime: trim(result || "(failed to capture runtime config)") };
-        }
-    }
+    clear_logs: { call: function() { try { writefile(LOG_FILE, ''); return { result: true }; } catch(e) { return { result: false }; } } }
 };
 
 return { 'luci.flowproxy': methods };
