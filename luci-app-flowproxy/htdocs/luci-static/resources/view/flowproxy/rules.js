@@ -69,12 +69,23 @@ return L.view.extend({
         s.sortable = true;
         s.nodescription = true;
 
-        // 核心修复：重写 handleRemove，确保删除后立即保存并刷新
-        s.handleRemove = function(ev, section_id) {
-            uci.remove('flowproxy', section_id);
-            return uci.save().then(function() {
-                location.reload();
-            });
+        // 强制重写渲染后的删除逻辑
+        s.renderRowActions = function(section_id) {
+            var node = form.TableSection.prototype.renderRowActions.apply(this, [section_id]);
+            var delBtn = node.querySelector('.cbi-button-remove');
+            if (delBtn) {
+                delBtn.onclick = L.bind(function(ev) {
+                    if (confirm(_('really delete this rule?'))) {
+                        uci.remove('flowproxy', section_id);
+                        uci.save().then(function() {
+                            location.reload();
+                        });
+                    }
+                    ev.stopPropagation();
+                    return false;
+                }, this);
+            }
+            return node;
         };
 
         s.handleAdd = function(ev) {
