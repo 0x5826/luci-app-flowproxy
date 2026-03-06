@@ -1,6 +1,7 @@
 'use strict';
 'require form';
 'require uci';
+'require rpc';
 'require view';
 'require ui';
 
@@ -45,7 +46,6 @@ return L.view.extend({
                     'class': 'cbi-button cbi-button-apply',
                     'title': _('Click to add to BOTH TCP and UDP lists'),
                     'click': ui.createHandlerFn(this, function() {
-                        // 默认模版依然同时添加到两个列表，因为大多数分流规则是通用的
                         ['tcp_rule', 'udp_rule'].forEach(function(type) {
                             var sid = uci.add('flowproxy', type);
                             uci.set('flowproxy', sid, 'name', p.name);
@@ -70,6 +70,49 @@ return L.view.extend({
             s.anonymous = true;
             s.sortable = true;
             s.nodescription = true;
+
+            // 拆分的重置按钮逻辑
+            s.renderSectionAdd = function(extra_class) {
+                var node = form.TableSection.prototype.renderSectionAdd.apply(this, [extra_class]);
+                var label = (type === 'tcp_rule') ? 'TCP' : 'UDP';
+                
+                var resetBtn = E('button', {
+                    'class': 'cbi-button cbi-button-reset',
+                    'style': 'margin-left: 10px; border: 1px solid #cc0000; color: #cc0000;',
+                    'title': _('Reset only %s rules').format(label),
+                    'click': ui.createHandlerFn(this, function() {
+                        if (confirm(_('this will delete ALL current %s rules and generate default templates. are you sure?').format(label))) {
+                            uci.sections('flowproxy', type).forEach(function(r) { uci.remove('flowproxy', r['.name']); });
+
+                            var defs = [
+                                { n: 'skip local (dst)', t: 'custom', v: 'fib daddr type { unspec, local, anycast, multicast }' },
+                                { n: 'skip proxy server', t: 'src_ip', v: '@proxy_server_ip' },
+                                { n: 'skip mac (src)', t: 'src_mac', v: '@no_proxy_src_mac' },
+                                { n: 'skip private (dst)', t: 'dst_ip', v: '@private_dst_ip_v4' },
+                                { n: 'skip china (dst)', t: 'dst_ip', v: '@chnroute_dst_ip_v4' }
+                            ];
+                            
+                            if (type === 'tcp_rule') {
+                                defs.push({ n: 'skip ports (dst)', t: 'dst_port', v: '@no_proxy_dst_tcp_ports' });
+                            }
+
+                            defs.forEach(function(r) {
+                                var sid = uci.add('flowproxy', type);
+                                uci.set('flowproxy', sid, 'name', r.n);
+                                uci.set('flowproxy', sid, 'enabled', '1');
+                                uci.set('flowproxy', sid, 'match_type', r.t);
+                                uci.set('flowproxy', sid, 'match_value', r.v);
+                                uci.set('flowproxy', sid, 'action', 'return');
+                                uci.set('flowproxy', sid, 'counter', '0');
+                            });
+                            return uci.save().then(function() { location.reload(); });
+                        }
+                    })
+                }, [ E('em', { 'class': 'icon-reload' }), ' ', _('reset %s templates').format(label) ]);
+
+                node.appendChild(resetBtn);
+                return node;
+            };
 
             s.renderRowActions = function(sid) {
                 var node = form.TableSection.prototype.renderRowActions.apply(this, [sid]);
@@ -98,79 +141,25 @@ return L.view.extend({
             };
 
             o = s.option(form.Flag, 'enabled', _('enabled'));
-            o.width = '5%';
-
+            o.width = '8%';
             o = s.option(form.Value, 'name', _('name'));
-            o.rmempty = false; o.width = '15%';
-
+            o.rmempty = false; o.width = '10%';
             o = s.option(form.ListValue, 'match_type', _('match type'));
-            // 不加 _() 翻译，显示原英文
-            o.value('dst_ip', 'dest ip');
-            o.value('src_ip', 'src ip');
-            o.value('src_mac', 'src mac');
-            o.value('dst_port', 'dest port');
-            o.value('src_port', 'src port');
-            o.value('custom', 'custom (raw)');
-            o.default = 'dst_ip';
-            o.width = '12%';
-
+            o.value('dst_ip', 'dest ip'); o.value('src_ip', 'src ip'); o.value('src_mac', 'src mac');
+            o.value('dst_port', 'dest port'); o.value('src_port', 'src port'); o.value('custom', 'custom (raw)');
+            o.default = 'dst_ip'; o.width = '12%';
             o = s.option(form.Value, 'match_value', _('match value'));
-            o.rmempty = false; o.width = '35%';
+            o.rmempty = false; o.width = '32%';
             nftsets.forEach(function(set) { o.value(set); });
-
             o = s.option(form.Flag, 'counter', _('counter'));
             o.width = '8%';
-
             o = s.option(form.ListValue, 'action', _('action'));
             o.value('return', 'return'); o.value('accept', 'accept'); o.value('drop', 'drop');
-            o.default = 'return';
-            o.width = '10%';
+            o.default = 'return'; o.width = '10%';
         }, this);
 
-        // 2. TCP 规则列表
         renderTable(m, 'tcp_rule', _('TCP Matching Rules'));
-
-        // 3. UDP 规则列表
         renderTable(m, 'udp_rule', _('UDP Matching Rules'));
-
-        // 4. 重置按钮区域 (放置在最下方)
-        s = m.section(form.NamedSection, '_reset', 'flowproxy', _('advanced control'));
-        s.render = L.bind(function() {
-            return E('div', { 'class': 'cbi-section-node', 'style': 'padding: 10px; text-align: right;' }, [
-                E('button', {
-                    'class': 'cbi-button cbi-button-reset',
-                    'style': 'border: 1px solid #cc0000; color: #cc0000;',
-                    'click': ui.createHandlerFn(this, function() {
-                        if (confirm(_('this will delete ALL current rules and generate default templates. are you sure?'))) {
-                            uci.sections('flowproxy', 'tcp_rule').forEach(function(r) { uci.remove('flowproxy', r['.name']); });
-                            uci.sections('flowproxy', 'udp_rule').forEach(function(r) { uci.remove('flowproxy', r['.name']); });
-
-                            var defs = [
-                                { n: 'skip local (dst)', t: 'custom', v: 'fib daddr type { local, anycast, multicast }' },
-                                { n: 'skip proxy server', t: 'src_ip', v: '@proxy_server_ip' },
-                                { n: 'skip mac (src)', t: 'src_mac', v: '@no_proxy_src_mac' },
-                                { n: 'skip private (dst)', t: 'dst_ip', v: '@private_dst_ip_v4' },
-                                { n: 'skip china (dst)', t: 'dst_ip', v: '@chnroute_dst_ip_v4' },
-                                { n: 'skip ports (dst)', t: 'dst_port', v: '@no_proxy_dst_tcp_ports' }
-                            ];
-
-                            ['tcp_rule', 'udp_rule'].forEach(function(type) {
-                                defs.forEach(function(r) {
-                                    var sid = uci.add('flowproxy', type);
-                                    uci.set('flowproxy', sid, 'name', r.n);
-                                    uci.set('flowproxy', sid, 'enabled', '1');
-                                    uci.set('flowproxy', sid, 'match_type', r.t);
-                                    uci.set('flowproxy', sid, 'match_value', r.v);
-                                    uci.set('flowproxy', sid, 'action', 'return');
-                                    uci.set('flowproxy', sid, 'counter', '0');
-                                });
-                            });
-                            return uci.save().then(function() { location.reload(); });
-                        }
-                    })
-                }, [ E('em', { 'class': 'icon-reload' }), ' ', _('reset to default templates') ])
-            ]);
-        }, this);
 
         return m.render();
     }

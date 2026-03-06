@@ -197,8 +197,14 @@ msgstr "drop (丢弃)"
 msgid "reset to default"
 msgstr "恢复默认"
 
-msgid "reset to default templates"
-msgstr "恢复默认模画"
+msgid "reset %s templates"
+msgstr "重置 %s 模版"
+
+msgid "this will delete ALL current %s rules and generate default templates. are you sure?"
+msgstr "这将删除当前所有 %s 规则并加载推荐的默认模版。确定吗？"
+
+msgid "Reset only %s rules"
+msgstr "仅重置 %s 规则"
 
 msgid "advanced control"
 msgstr "高级控制"
