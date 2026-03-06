@@ -138,7 +138,7 @@ return L.view.extend({
 
         o = s.option(form.Value, 'name', _('name'));
         o.rmempty = false;
-        o.width = '12%';
+        o.width = '10%';
 
         o = s.option(form.ListValue, 'protocol', _('protocol'));
         o.value('both', 'both'); o.value('tcp', 'tcp'); o.value('udp', 'udp');
@@ -156,7 +156,7 @@ return L.view.extend({
         nftsets.forEach(function(set) { o.value(set); });
 
         o = s.option(form.Flag, 'counter', _('counter'));
-        o.width = '6%';
+        o.width = '8%';
 
         o = s.option(form.ListValue, 'action', _('action'));
         o.value('return', 'return'); o.value('accept', 'accept'); o.value('drop', 'drop');
