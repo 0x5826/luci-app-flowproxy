@@ -21,15 +21,20 @@ function uci_get_config(section, option, default_val) {
 const methods = {
     get_status: {
         call: function() {
-            // 极速探测
+            // 1. 检测标记文件
             let is_running = access(STATE_FILE, 'f');
             
-            // 自愈检测
-            if (!is_running) {
-                if (system('nft list table inet ' + NFT_TABLE + ' >/dev/null 2>&1') === 0) {
-                    is_running = true;
-                    try { writefile(STATE_FILE, ''); } catch(e) {}
-                }
+            // 2. 深度检测与自愈：真实检查内核中的 TCP/UDP 链
+            let tcp_active = (system('nft list chain inet ' + NFT_TABLE + ' LAN_MARKFLOW_TCP >/dev/null 2>&1') === 0);
+            let udp_active = (system('nft list chain inet ' + NFT_TABLE + ' LAN_MARKFLOW_UDP >/dev/null 2>&1') === 0);
+            
+            let real_running = (tcp_active || udp_active);
+
+            // 如果内核状态与标记文件不一致，自动同步标记文件
+            if (real_running && !is_running) {
+                try { writefile(STATE_FILE, ''); } catch(e) {}
+            } else if (!real_running && is_running) {
+                try { system('rm -f ' + STATE_FILE); } catch(e) {}
             }
 
             // 获取 LAN IP (优先从缓存读取)
@@ -48,16 +53,17 @@ const methods = {
                 } catch (e) {}
             }
 
-            // 无论是否快速路径，都返回展示所需的配置信息
-            // 查询 UCI 配置非常快 (毫秒级)，不会拖慢速度
             return {
-                running: is_running ? 1 : 0,
+                running: real_running ? 1 : 0,
                 enabled: int(uci_get_config('global', 'enabled', '0')),
                 proxy_ip: uci_get_config('global', 'proxy_ip', ''),
                 lan_ip: trim(lan_ip),
                 interface: uci_get_config('global', 'interface', 'br-lan'),
                 tproxy_mark: uci_get_config('global', 'tproxy_mark', '100'),
-                nft: { tcp: is_running ? 1 : 0, udp: is_running ? 1 : 0 }
+                nft: {
+                    tcp: tcp_active ? 1 : 0,
+                    udp: udp_active ? 1 : 0
+                }
             };
         }
     },

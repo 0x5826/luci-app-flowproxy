@@ -49,6 +49,7 @@ return L.view.extend({
         }, this);
 
         s = m.section(form.NamedSection, 'global', 'flowproxy', _('basic settings'));
+
         o = s.option(form.Flag, 'enabled', _('enable flowproxy'));
         o.rmempty = false; o.default = '0';
 
@@ -63,12 +64,9 @@ return L.view.extend({
         o = s.option(form.Value, 'tproxy_mark', _('tproxy mark'));
         o.datatype = 'uinteger'; o.default = '100';
 
-        // 重点修复：在 Map 渲染完成后再触发状态更新
         return m.render().then(L.bind(function(node) {
-            // 立即执行第一次状态抓取
             this.refreshStatus(m);
             
-            // 异步填充接口列表
             callGetInterfaces().then(L.bind(function(ifdata) {
                 var ifaceOpt = m.lookupOption('interface', 'global')[0];
                 if (ifaceOpt && ifdata?.interfaces) {
@@ -78,7 +76,6 @@ return L.view.extend({
                 }
             }, this));
 
-            // 启动定时轮询
             poll.add(L.bind(function() {
                 return this.refreshStatus(m);
             }, this), 5);
@@ -92,7 +89,6 @@ return L.view.extend({
             if (!status) return;
             var isRunning = (status.running == 1);
             
-            // 状态文字更新
             var statusEl = document.getElementById('service-status');
             if (statusEl) {
                 statusEl.innerHTML = isRunning ? 
@@ -100,7 +96,6 @@ return L.view.extend({
                     '<span style="color: red; font-weight: bold;">● ' + _('stopped') + '</span>';
             }
 
-            // 详情行切换
             ['nft-status-row', 'proxy-ip-row'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (el) el.style.display = isRunning ? '' : 'none';
@@ -119,14 +114,27 @@ return L.view.extend({
                 }
             }
 
-            // 更新建议 IP 占位符
+            // 核心修复：预填 Proxy IP 为 LAN IP + 1
             if (status.lan_ip) {
                 var parts = status.lan_ip.split('.');
                 if (parts.length === 4) {
                     parts[3] = parseInt(parts[3]) + 1;
                     var suggestedIp = parts.join('.');
+                    
                     var ipOpt = map.lookupOption('proxy_ip', 'global')[0];
-                    if (ipOpt) ipOpt.placeholder = suggestedIp;
+                    if (ipOpt) {
+                        ipOpt.placeholder = suggestedIp;
+                        // 如果当前 UCI 值为空，则直接设置 default
+                        var currentVal = uci.get('flowproxy', 'global', 'proxy_ip');
+                        if (!currentVal) {
+                            var input = document.querySelector('input[name="cbid.flowproxy.global.proxy_ip"]');
+                            if (input && !input.value) {
+                                input.value = suggestedIp;
+                                // 触发 change 事件以确保 uci 状态同步
+                                input.dispatchEvent(new CustomEvent('change', { bubbles: true }));
+                            }
+                        }
+                    }
                 }
             }
         }, this));
