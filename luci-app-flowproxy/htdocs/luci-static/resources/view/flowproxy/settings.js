@@ -18,17 +18,17 @@ var callGetInterfaces = rpc.declare({
 });
 
 return L.view.extend({
+    // 优化点：不再在 load 中阻塞等待耗时的接口列表获取
     load: function() {
         return Promise.all([
             uci.load('flowproxy').catch(function() { return {}; }),
-            callGetStatus().catch(function() { return {}; }),
-            callGetInterfaces().catch(function() { return { interfaces: [] }; })
+            callGetStatus().catch(function() { return {}; })
         ]);
     },
 
     render: function(data) {
+        var uciData = data[0] || {};
         var status = data[1] || {};
-        var interfaces = (data[2] && Array.isArray(data[2].interfaces)) ? data[2].interfaces : [];
         var m, s, o;
 
         m = new form.Map('flowproxy', _('flowproxy'),
@@ -71,12 +71,25 @@ return L.view.extend({
         }
         o.default = suggestedIp || '192.168.1.100'; o.placeholder = suggestedIp;
 
+        // 优化点：接口列表初始为空，稍后异步填充
         o = s.option(form.ListValue, 'interface', _('network interface'));
-        interfaces.forEach(function(iface) { o.value(iface.name, iface.name + (iface.mac ? ' (' + iface.mac + ')' : '')); });
+        o.id = 'interface-list-opt';
+        o.value('br-lan', 'br-lan');
         o.default = 'br-lan';
 
         o = s.option(form.Value, 'tproxy_mark', _('tproxy mark'));
         o.datatype = 'uinteger'; o.default = '100';
+
+        // 异步填充接口列表
+        callGetInterfaces().then(L.bind(function(data) {
+            var ifaceOpt = m.lookupOption('interface', 'global')[0];
+            if (ifaceOpt && data && Array.isArray(data.interfaces)) {
+                data.interfaces.forEach(function(iface) {
+                    ifaceOpt.value(iface.name, iface.name + (iface.mac ? ' (' + iface.mac + ')' : ''));
+                });
+                // 强制触发一次重绘或 UI 更新（如果需要的话，ListValue 通常会自动刷新建议值）
+            }
+        }, this));
 
         this.updateStatus(status);
         this.pollStatus();
@@ -85,6 +98,7 @@ return L.view.extend({
     },
 
     updateStatus: function(status) {
+        if (!status) return;
         var isRunning = (status.running == 1);
         var statusEl = document.getElementById('service-status');
         if (statusEl) {
@@ -102,7 +116,6 @@ return L.view.extend({
         if (isRunning) {
             var proxyIpEl = document.getElementById('proxy-ip');
             if (proxyIpEl) proxyIpEl.innerText = status.proxy_ip || '-';
-
             var nftEl = document.getElementById('nft-status');
             if (nftEl && status.nft) {
                 var chains = [];
