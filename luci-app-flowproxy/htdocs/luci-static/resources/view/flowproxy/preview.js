@@ -27,7 +27,7 @@ return L.view.extend({
     },
 
     highlightNft: function(text) {
-        if (!text) return '';
+        if (!text) return '<span style="color: #999;">(no content)</span>';
         var rules = [
             { rex: /#(.*)/g, cls: 'comment' },
             { rex: /\b(table|chain|set|elements|type)\b/g, cls: 'keyword' },
@@ -59,21 +59,30 @@ return L.view.extend({
         m = new form.Map('flowproxy', _('flowproxy - preview'),
             _('view the generated configuration and live kernel state.'));
 
-        // 注入极简高亮 CSS
+        // 注入强制白底高亮 CSS
         var style = E('style', {}, `
             .nft-code-view { 
-                background: transparent; color: #333333; padding: 5px 0; 
-                font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-                font-size: 13px; line-height: 1.6; overflow-x: auto; white-space: pre; 
-                width: 100%; border: none;
+                background: #ffffff !important; 
+                color: #333333 !important; 
+                padding: 20px !important; 
+                margin: 10px 0 !important;
+                font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace !important;
+                font-size: 13px !important; 
+                line-height: 1.6 !important; 
+                overflow-x: auto !important; 
+                white-space: pre !important; 
+                width: 100% !important; 
+                border: 1px solid #eeeeee !important;
+                display: block !important;
+                min-height: 100px;
             }
-            .nft-comment { color: #999988; font-style: italic; }
-            .nft-keyword { color: #a626a1; font-weight: bold; }
-            .nft-proto { color: #4078f2; }
-            .nft-match { color: #986801; }
-            .nft-action { color: #e45649; font-weight: bold; }
-            .nft-variable { color: #50a14f; font-weight: bold; }
-            .nft-bracket { color: #383a42; }
+            .nft-comment { color: #999988 !important; font-style: italic !important; }
+            .nft-keyword { color: #a626a1 !important; font-weight: bold !important; }
+            .nft-proto { color: #4078f2 !important; }
+            .nft-match { color: #986801 !important; }
+            .nft-action { color: #e45649 !important; font-weight: bold !important; }
+            .nft-variable { color: #50a14f !important; font-weight: bold !important; }
+            .nft-bracket { color: #383a42 !important; }
         `);
         document.head.appendChild(style);
 
@@ -90,9 +99,7 @@ return L.view.extend({
                         'click': function() { ui.addNotification(null, E('p', _('copied')), 'info'); navigator.clipboard.writeText(genConfig); }
                     }, _('copy raw config'))
                 ]),
-                E('div', { 'class': 'nft-code-view' }, [
-                    E('code', { 'id': 'gen-code' })
-                ])
+                E('pre', { 'class': 'nft-code-view', 'id': 'gen-code' }, [ _('loading...') ])
             ]);
         }, this);
 
@@ -105,18 +112,19 @@ return L.view.extend({
                         'click': function() { location.reload(); }
                     }, _('refresh status'))
                 ]),
-                E('div', { 'class': 'nft-code-view' }, [
-                    E('code', { 'id': 'run-code' })
-                ])
+                E('pre', { 'class': 'nft-code-view', 'id': 'run-code' }, [ _('loading...') ])
             ]);
         }, this);
 
         return m.render().then(L.bind(function(node) {
-            var genCodeEl = node.querySelector('#gen-code');
-            if (genCodeEl) genCodeEl.innerHTML = this.highlightNft(genConfig);
-            
-            var runCodeEl = node.querySelector('#run-code');
-            if (runCodeEl) runCodeEl.innerHTML = this.highlightNft(runConfig);
+            // 使用 setTimeout 确保 DOM 已经完全插入
+            setTimeout(L.bind(function() {
+                var genCodeEl = document.getElementById('gen-code');
+                if (genCodeEl) genCodeEl.innerHTML = this.highlightNft(genConfig);
+                
+                var runCodeEl = document.getElementById('run-code');
+                if (runCodeEl) runCodeEl.innerHTML = this.highlightNft(runConfig);
+            }, this), 100);
             
             return node;
         }, this));
