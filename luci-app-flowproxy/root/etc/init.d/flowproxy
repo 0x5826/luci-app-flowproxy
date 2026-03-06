@@ -71,10 +71,11 @@ delete_nft() {
 start_service() {
     local enabled=$(uci -q get "$UCI_CONFIG.global.enabled" || echo 0)
 
-    [ "$enabled" -eq 0 ] && {
-        log_msg info "FlowProxy is disabled"
+    if [ "$enabled" -eq 0 ]; then
+        log_msg info "FlowProxy is disabled, ensuring service is stopped"
+        stop_service
         return 0
-    }
+    fi
 
     log_msg info "Starting FlowProxy..."
 
