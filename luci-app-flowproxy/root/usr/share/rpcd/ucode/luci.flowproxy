@@ -111,10 +111,11 @@ const methods = {
             try {
                 let ubus_conn = connect();
                 if (ubus_conn) {
-                    let result = ubus_conn.call('network.interface', 'dump');
-                    if (result?.interface) {
-                        for (let iface in result.interface) {
-                            if (iface?.device) push(interfaces, { name: iface.device });
+                    // 使用 network.device status 以获取所有物理设备 (包括 eth0 等 bridge 成员)
+                    let dev_status = ubus_conn.call('network.device', 'status');
+                    if (dev_status) {
+                        for (let name in dev_status) {
+                            push(interfaces, { name: name });
                         }
                     }
                     ubus_conn.disconnect();
