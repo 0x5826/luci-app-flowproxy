@@ -113,7 +113,7 @@ config nftset 'chnroute_dst_ip_v4'
 	option enabled '1'
 	option type 'ipv4_addr'
 	option file_path '/usr/share/flowproxy/chnroute.txt'
-	option download_url ''
+	option download_url 'https://raw.githubusercontent.com/mayaxcn/china-ip-list/master/chnroute.txt'
 
 config nftset 'no_proxy_dst_tcp_ports'
 	option enabled '1'
