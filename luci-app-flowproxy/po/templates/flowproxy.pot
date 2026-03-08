@@ -127,6 +127,21 @@ msgstr ""
 msgid "Basic Settings"
 msgstr ""
 
+msgid "current status"
+msgstr ""
+
+msgid "dns redirection"
+msgstr ""
+
+msgid "force upstream dns to proxy server"
+msgstr ""
+
+msgid "proxy server dns port"
+msgstr ""
+
+msgid "when enabled, dnsmasq will use the proxy server as the upstream dns server. \"dns redirect\" feature will be disabled.<br/>note: the \"enable flowproxy\" option must also be turned on for this to take effect."
+msgstr ""
+
 msgid "FlowProxy - Rules Management"
 msgstr ""
 

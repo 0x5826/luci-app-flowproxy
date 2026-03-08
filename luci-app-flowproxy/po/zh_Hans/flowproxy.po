@@ -35,6 +35,9 @@ msgstr "服务状态"
 msgid "current status"
 msgstr "当前状态"
 
+msgid "dns redirection"
+msgstr "DNS 转发"
+
 msgid "running"
 msgstr "运行中"
 
@@ -67,6 +70,15 @@ msgstr "网络接口"
 
 msgid "tproxy mark"
 msgstr "TPROXY 标记值"
+
+msgid "force upstream dns to proxy server"
+msgstr "强制上游 DNS 为代理服务器"
+
+msgid "when enabled, dnsmasq will use the proxy server as the upstream dns server. \"dns redirect\" feature will be disabled.<br/>note: the \"enable flowproxy\" option must also be turned on for this to take effect."
+msgstr "启用后，dnsmasq 将使用代理服务器作为上游 DNS 服务器。“DNS 重定向”功能将被禁用。<br/>注意：必须同时勾选“启用代理分流”才能生效。"
+
+msgid "proxy server dns port"
+msgstr "代理服务器 DNS 端口"
 
 # Rules Page
 msgid "flowproxy - rules"

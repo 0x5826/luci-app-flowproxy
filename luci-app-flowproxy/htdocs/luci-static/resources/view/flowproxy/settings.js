@@ -40,24 +40,26 @@ return L.view.extend({
             return '<div id="service-status" style="display:inline-block;"><em class="spinning">' + _('checking...') + '</em></div>';
         };
 
-        o = s.option(form.DummyValue, '_nft_status', _('active protocols'));
+        o = s.option(form.DummyValue, '_dns_status', _('dns redirection'));
         o.rawhtml = true;
         o.cfgvalue = function() {
-            return '<div id="nft-status" style="display:inline-block;">-</div>';
-        };
-
-        o = s.option(form.DummyValue, '_proxy_server_ip_addr', _('active proxy server ip address'));
-        o.rawhtml = true;
-        o.cfgvalue = function() {
-            return '<div id="proxy_server_ip_addr" style="display:inline-block;">-</div>';
+            return '<div id="dns-status" style="display:inline-block;">-</div>';
         };
 
         o = s.option(form.Flag, 'enabled', _('enable flowproxy'));
         o.rmempty = false; o.default = '0';
 
+        o = s.option(form.Flag, 'dns_proxy_enabled', _('force upstream dns to proxy server'));
+        o.rmempty = false; o.default = '0';
+        o.description = _('when enabled, dnsmasq will use the proxy server as the upstream dns server. "dns redirect" feature will be disabled.<br/>note: the "enable flowproxy" option must also be turned on for this to take effect.');
+
         o = s.option(form.Value, 'proxy_server_ip_addr', _('proxy server ip address'));
         o.datatype = 'ip4addr'; o.rmempty = false;
         o.default = '192.168.1.100';
+
+        o = s.option(form.Value, 'proxy_server_dns_port', _('proxy server dns port'));
+        o.datatype = 'port'; o.rmempty = false;
+        o.default = '5353';
 
         o = s.option(form.ListValue, 'interface', _('network interface'));
         if (ifdata && ifdata.interfaces) {
@@ -88,31 +90,39 @@ return L.view.extend({
             
             var statusEl = document.getElementById('service-status');
             if (statusEl) {
-                statusEl.innerHTML = isRunning ? 
-                    '<span style="color: green; font-weight: bold;">' + _('running') + '</span>' : 
-                    '<span style="color: red; font-weight: bold;">' + _('stopped') + '</span>';
+                if (isRunning) {
+                    var chains = [];
+                    if (status.nft && status.nft.tcp) chains.push('TCP');
+                    if (status.nft && status.nft.udp) chains.push('UDP');
+                    var ip = status.proxy_server_ip_addr || '-';
+                    var protoHtml = chains.length > 0 ? 
+                        '<span style="color: #FF9800; font-weight: bold;">' + chains.join('+') + '</span>' : '-';
+                    statusEl.innerHTML = '<span style="color: green; font-weight: bold;">' + _('running') + '</span>' + 
+                                         ' (' + ip + ':' + protoHtml + ')';
+                } else {
+                    statusEl.innerHTML = '<span style="color: red; font-weight: bold;">' + _('stopped') + '</span>';
+                }
             }
 
-            ['nft-status', 'proxy_server_ip_addr'].forEach(function(id) {
+            var dnsEl = document.getElementById('dns-status');
+            if (dnsEl) {
+                if (status.dns_running == 1) {
+                    var ip = status.proxy_server_ip_addr || '-';
+                    var portHtml = '<span style="color: #FF9800; font-weight: bold;">' + (status.proxy_server_dns_port || '5353') + '</span>';
+                    dnsEl.innerHTML = '<span style="color: green; font-weight: bold;">' + _('running') + '</span>' + 
+                                      ' (' + ip + ':' + portHtml + ')';
+                } else {
+                    dnsEl.innerHTML = '<span style="color: red; font-weight: bold;">' + _('stopped') + '</span>';
+                }
+            }
+
+            ['dns-status'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (el) {
                     var rowEl = el.closest('.cbi-value') || el.parentNode.parentNode;
                     if (rowEl) rowEl.style.display = isRunning ? '' : 'none';
                 }
             });
-
-            if (isRunning) {
-                var pipEl = document.getElementById('proxy_server_ip_addr');
-                if (pipEl) pipEl.innerText = status.proxy_server_ip_addr || '-';
-                
-                var nftEl = document.getElementById('nft-status');
-                if (nftEl && status.nft) {
-                    var chains = [];
-                    if (status.nft.tcp) chains.push('TCP');
-                    if (status.nft.udp) chains.push('UDP');
-                    nftEl.innerHTML = '<span style="color: green;">' + (chains.length > 0 ? chains.join(', ') : 'NONE') + '</span>';
-                }
-            }
 
             // 核心修复：预填 Proxy Server IP 为 LAN IP + 1
             if (status.lan_ip) {

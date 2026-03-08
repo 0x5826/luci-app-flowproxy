@@ -49,10 +49,15 @@ const methods = {
             }
 
             let uci_cursor = cursor();
+            let proxy_server_ip_addr = uci_cursor.get(UCI_CONFIG, 'global', 'proxy_server_ip_addr') || '';
+            let dns_running = (uci_cursor.get(UCI_CONFIG, 'dns_backup') ? 1 : 0);
+            
             return {
                 running: real_running ? 1 : 0,
+                dns_running: dns_running,
                 enabled: int(uci_cursor.get(UCI_CONFIG, 'global', 'enabled') || '0'),
-                proxy_server_ip_addr: uci_cursor.get(UCI_CONFIG, 'global', 'proxy_server_ip_addr') || '',
+                proxy_server_ip_addr: proxy_server_ip_addr,
+                proxy_server_dns_port: uci_cursor.get(UCI_CONFIG, 'global', 'proxy_server_dns_port') || '5353',
                 lan_ip: safe_trim(lan_ip),
                 interface: uci_cursor.get(UCI_CONFIG, 'global', 'interface') || 'br-lan',
                 tproxy_mark: uci_cursor.get(UCI_CONFIG, 'global', 'tproxy_mark') || '100',
@@ -95,10 +100,20 @@ const methods = {
     get_runtime_config: {
         call: function() {
             let res_file = '/tmp/flowproxy_runtime.tmp';
+            let dns_file = '/tmp/flowproxy_dns_runtime.tmp';
+            
             system('/usr/share/flowproxy/generate_nft.sh runtime > ' + res_file + ' 2>&1');
-            let result = readfile(res_file) || "(failed)";
+            let nft_runtime = readfile(res_file) || "(failed)";
             system('rm -f ' + res_file);
-            return { runtime: safe_trim(result) };
+            
+            system('uci show dhcp.@dnsmasq[0] | grep -E "noresolv|dns_redirect|server" | sed -E "s/^dhcp\\.[^.]*\\.([^=]*)=(.*)/\\1: \\2/; s/\\x27//g; s/#/:/g" > ' + dns_file + ' 2>&1');
+            let dns_out = readfile(dns_file);
+            system('rm -f ' + dns_file);
+            
+            let dns_runtime = "\n--- [ DNSmasq Runtime Configuration ] ---\n";
+            dns_runtime += (dns_out || "(no active dnsmasq overrides)");
+            
+            return { runtime: safe_trim(nft_runtime + dns_runtime) };
         }
     },
 

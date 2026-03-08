@@ -124,6 +124,83 @@ delete_nft() {
     log_msg info "Removed nftables table 'flowproxy'"
 }
 
+setup_dns() {
+    local enabled=$(uci -q get "$UCI_CONFIG.global.enabled" || echo 0)
+    local dns_proxy_enabled=$(uci -q get "$UCI_CONFIG.global.dns_proxy_enabled" || echo 0)
+    local proxy_server_dns_port=$(uci -q get "$UCI_CONFIG.global.proxy_server_dns_port" || echo 5353)
+    local proxy_server_ip_addr=$(uci -q get "$UCI_CONFIG.global.proxy_server_ip_addr")
+
+    # Only apply DNS proxy if BOTH main service and DNS proxy are enabled
+    if [ "$enabled" -eq 0 ] || [ "$dns_proxy_enabled" -eq 0 ]; then
+        cleanup_dns
+        return 0
+    fi
+
+    [ -z "$proxy_server_ip_addr" ] && { log_msg error "proxy_server_ip_addr not configured, cannot setup DNS"; return 1; }
+
+    log_msg info "Setting up DNS redirection to $proxy_server_ip_addr#$proxy_server_dns_port..."
+
+    # Persistent backup in UCI
+    if ! uci -q get "$UCI_CONFIG.dns_backup" >/dev/null; then
+        local old_noresolv=$(uci -q get dhcp.@dnsmasq[0].noresolv)
+        local old_dns_redirect=$(uci -q get dhcp.@dnsmasq[0].dns_redirect)
+        local old_servers=$(uci -q get dhcp.@dnsmasq[0].server | tr '\n' ',' | sed 's/,$//')
+        
+        log_msg debug "Backing up DNS: noresolv=${old_noresolv:-empty}, redirect=${old_dns_redirect:-empty}, servers=${old_servers:-empty}"
+        
+        uci set "$UCI_CONFIG.dns_backup=dns_backup"
+        [ -n "$old_noresolv" ] && uci set "$UCI_CONFIG.dns_backup.noresolv=$old_noresolv"
+        [ -n "$old_dns_redirect" ] && uci set "$UCI_CONFIG.dns_backup.dns_redirect=$old_dns_redirect"
+        [ -n "$old_servers" ] && uci set "$UCI_CONFIG.dns_backup.servers=$old_servers"
+        uci commit "$UCI_CONFIG"
+    fi
+
+    log_msg debug "Applying new DNS: noresolv=1, redirect=0, server=$proxy_server_ip_addr#$proxy_server_dns_port"
+    uci set dhcp.@dnsmasq[0].noresolv='1'
+    uci set dhcp.@dnsmasq[0].dns_redirect='0'
+    
+    # Delete current servers and add our proxy
+    uci -q delete dhcp.@dnsmasq[0].server
+    uci add_list dhcp.@dnsmasq[0].server="$proxy_server_ip_addr#$proxy_server_dns_port"
+    
+    uci commit dhcp
+    /etc/init.d/dnsmasq restart
+}
+
+cleanup_dns() {
+    if uci -q get "$UCI_CONFIG.dns_backup" >/dev/null; then
+        log_msg info "Restoring original DNS configuration..."
+        
+        local noresolv=$(uci -q get "$UCI_CONFIG.dns_backup.noresolv")
+        local dns_redirect=$(uci -q get "$UCI_CONFIG.dns_backup.dns_redirect")
+        local servers=$(uci -q get "$UCI_CONFIG.dns_backup.servers")
+        
+        log_msg debug "Restoring DNS values: noresolv=${noresolv:-0}, redirect=${dns_redirect:-1}, servers=${servers:-empty}"
+
+        # Restore noresolv (default to 0 if not backed up)
+        [ -n "$noresolv" ] && uci set dhcp.@dnsmasq[0].noresolv="$noresolv" || uci set dhcp.@dnsmasq[0].noresolv="0"
+
+        # Restore dns_redirect (default to 1 as requested for OpenWrt typical modded builds)
+        [ -n "$dns_redirect" ] && uci set dhcp.@dnsmasq[0].dns_redirect="$dns_redirect" || uci set dhcp.@dnsmasq[0].dns_redirect="1"
+        
+        # Restore servers
+        uci -q delete dhcp.@dnsmasq[0].server
+        if [ -n "$servers" ]; then
+            local old_ifs="$IFS"
+            IFS=','
+            for s in $servers; do
+                [ -n "$s" ] && uci add_list dhcp.@dnsmasq[0].server="$s"
+            done
+            IFS="$old_ifs"
+        fi
+        
+        uci commit dhcp
+        uci delete "$UCI_CONFIG.dns_backup"
+        uci commit "$UCI_CONFIG"
+        /etc/init.d/dnsmasq restart
+    fi
+}
+
 start_service() {
     local enabled=$(uci -q get "$UCI_CONFIG.global.enabled" || echo 0)
 
@@ -139,6 +216,7 @@ start_service() {
     check_config || return 1
     apply_nft_rules || return 1
     add_route
+    setup_dns
 
     touch "$STATE_FILE"
     log_msg info "FlowProxy service started successfully"
@@ -149,6 +227,7 @@ stop_service() {
     rm -f "$STATE_FILE"
     delete_route
     delete_nft
+    cleanup_dns
     log_msg info "FlowProxy service stopped"
 }
 
