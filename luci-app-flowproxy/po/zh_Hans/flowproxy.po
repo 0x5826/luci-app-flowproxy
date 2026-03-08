@@ -62,6 +62,9 @@ msgstr "基础设置"
 msgid "enable flowproxy"
 msgstr "启用代理分流"
 
+msgid "to enable or disable TCP and UDP protocols, please go to the \"Rules\" page."
+msgstr "TCP 和 UDP 协议的开启或关闭，请到“规则”页面进行设置。"
+
 msgid "proxy server ip address"
 msgstr "代理服务器 IP 地址"
 

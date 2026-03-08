@@ -48,6 +48,7 @@ return L.view.extend({
 
         o = s.option(form.Flag, 'enabled', _('enable flowproxy'));
         o.rmempty = false; o.default = '0';
+        o.description = _('to enable or disable TCP and UDP protocols, please go to the "Rules" page.');
 
         o = s.option(form.Flag, 'dns_proxy_enabled', _('force upstream dns to proxy server'));
         o.rmempty = false; o.default = '0';

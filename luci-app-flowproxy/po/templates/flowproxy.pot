@@ -127,6 +127,12 @@ msgstr ""
 msgid "Basic Settings"
 msgstr ""
 
+msgid "enable flowproxy"
+msgstr ""
+
+msgid "to enable or disable TCP and UDP protocols, please go to the \"Rules\" page."
+msgstr ""
+
 msgid "current status"
 msgstr ""
 
