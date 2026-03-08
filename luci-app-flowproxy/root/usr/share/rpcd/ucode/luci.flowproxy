@@ -52,7 +52,7 @@ const methods = {
             return {
                 running: real_running ? 1 : 0,
                 enabled: int(uci_cursor.get(UCI_CONFIG, 'global', 'enabled') || '0'),
-                proxy_ip: uci_cursor.get(UCI_CONFIG, 'global', 'proxy_ip') || '',
+                proxy_server_ip_addr: uci_cursor.get(UCI_CONFIG, 'global', 'proxy_server_ip_addr') || '',
                 lan_ip: safe_trim(lan_ip),
                 interface: uci_cursor.get(UCI_CONFIG, 'global', 'interface') || 'br-lan',
                 tproxy_mark: uci_cursor.get(UCI_CONFIG, 'global', 'tproxy_mark') || '100',

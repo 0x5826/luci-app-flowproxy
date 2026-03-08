@@ -129,7 +129,7 @@ process_rule() {
     case "$match_value" in
         @*)
             local set_ref=$(echo "$match_value" | cut -d' ' -f1)
-            if [ "$set_ref" != "@proxy_server_ip" ]; then
+            if [ "$set_ref" != "@proxy_server_ip_addr" ]; then
                 if ! echo "$ENABLED_SETS" | grep -q " ${set_ref} "; then
                     log_debug "Skipping rule $section: set ${set_ref} is not defined or disabled"
                     return
@@ -150,8 +150,8 @@ process_rule() {
     esac
 
     local line="$segment"; [ "$counter" = "1" ] && line="$line counter"; line="$line $action"
-    local proxy_ip_final=$(uci -q get "$CONFIG.global.proxy_ip")
-    line=$(echo "$line" | sed "s|@proxy_server_ip|$proxy_ip_final|g")
+    local proxy_server_ip_addr_final=$(uci -q get "$CONFIG.global.proxy_server_ip_addr")
+    line=$(echo "$line" | sed "s|@proxy_server_ip_addr|$proxy_server_ip_addr_final|g")
     [ -n "$line" ] && echo "        $line"
 }
 
@@ -191,7 +191,7 @@ done
 TCP_ENABLED=$(uci -q get "$CONFIG.global.tcp_enabled" || echo "1")
 UDP_ENABLED=$(uci -q get "$CONFIG.global.udp_enabled" || echo "1")
 TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
-PROXY_IP=$(uci -q get "$CONFIG.global.proxy_ip")
+PROXY_SERVER_IP_ADDR=$(uci -q get "$CONFIG.global.proxy_server_ip_addr")
 
 # TCP 链
 if [ "$TCP_ENABLED" = "1" ]; then
@@ -201,7 +201,7 @@ if [ "$TCP_ENABLED" = "1" ]; then
         meta nfproto != ipv4 return
 EOF
     # 内置防回环：符合逻辑规范
-    [ -n "$PROXY_IP" ] && echo "        ip saddr $PROXY_IP counter return" >> "$OUTPUT_FILE"
+    [ -n "$PROXY_SERVER_IP_ADDR" ] && echo "        ip saddr $PROXY_SERVER_IP_ADDR counter return" >> "$OUTPUT_FILE"
     for s in $SECTIONS_TCP; do process_rule "$s" "tcp" >> "$OUTPUT_FILE"; done
     echo "        ip protocol tcp counter meta mark set $TPROXY_MARK" >> "$OUTPUT_FILE"
     echo "    }" >> "$OUTPUT_FILE"
@@ -215,7 +215,7 @@ if [ "$UDP_ENABLED" = "1" ]; then
         meta nfproto != ipv4 return
 EOF
     # 内置防回环：符合逻辑规范
-    [ -n "$PROXY_IP" ] && echo "        ip saddr $PROXY_IP counter return" >> "$OUTPUT_FILE"
+    [ -n "$PROXY_SERVER_IP_ADDR" ] && echo "        ip saddr $PROXY_SERVER_IP_ADDR counter return" >> "$OUTPUT_FILE"
     for s in $SECTIONS_UDP; do process_rule "$s" "udp" >> "$OUTPUT_FILE"; done
     echo "        ip protocol udp counter meta mark set $TPROXY_MARK" >> "$OUTPUT_FILE"
     echo "    }" >> "$OUTPUT_FILE"

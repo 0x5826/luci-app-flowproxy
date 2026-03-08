@@ -15,7 +15,7 @@ return L.view.extend({
         var nftsets = uci.sections('flowproxy', 'nftset').map(function(s) {
             return '@' + s['.name'];
         });
-        nftsets.push('@proxy_server_ip');
+        nftsets.push('@proxy_server_ip_addr');
 
         m = new form.Map('flowproxy', _('flowproxy - rules'),
             _('Manage diversion rules, mainly used to define which traffic should bypass the proxy server.'));

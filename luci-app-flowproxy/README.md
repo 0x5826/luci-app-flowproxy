@@ -56,7 +56,7 @@ FlowProxy 采用 **"默认代理，规则跳过"** 的黑名单模式。
 ## 预定义名单引用
 
 在规则的 `Match Value` 中，您可以使用以下建议值：
-- `@proxy_server_ip`: 自动替换为当前配置的代理服务器 IP。
+- `@proxy_server_ip_addr`: 自动替换为当前配置的代理服务器 IP。
 - `@no_proxy_src_mac`: 名单中配置的不走代理的设备 MAC。
 - `@private_dst_ip_v4`: RFC1918 私有 IP 地址段。
 - `@chnroute_dst_ip_v4`: 中国大陆 IP 地址段。

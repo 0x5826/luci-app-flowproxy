@@ -50,8 +50,8 @@ msgstr "检测中..."
 msgid "active protocols"
 msgstr "生效协议"
 
-msgid "active proxy ip"
-msgstr "活动代理 IP"
+msgid "active proxy server ip address"
+msgstr "活动代理服务器 IP 地址"
 
 msgid "basic settings"
 msgstr "基础设置"
@@ -59,7 +59,7 @@ msgstr "基础设置"
 msgid "enable flowproxy"
 msgstr "启用代理分流"
 
-msgid "proxy ip address"
+msgid "proxy server ip address"
 msgstr "代理服务器 IP 地址"
 
 msgid "network interface"

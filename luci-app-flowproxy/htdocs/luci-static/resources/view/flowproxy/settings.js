@@ -46,16 +46,16 @@ return L.view.extend({
             return '<div id="nft-status" style="display:inline-block;">-</div>';
         };
 
-        o = s.option(form.DummyValue, '_proxy_ip', _('active proxy ip'));
+        o = s.option(form.DummyValue, '_proxy_server_ip_addr', _('active proxy server ip address'));
         o.rawhtml = true;
         o.cfgvalue = function() {
-            return '<div id="proxy-ip" style="display:inline-block;">-</div>';
+            return '<div id="proxy_server_ip_addr" style="display:inline-block;">-</div>';
         };
 
         o = s.option(form.Flag, 'enabled', _('enable flowproxy'));
         o.rmempty = false; o.default = '0';
 
-        o = s.option(form.Value, 'proxy_ip', _('proxy ip address'));
+        o = s.option(form.Value, 'proxy_server_ip_addr', _('proxy server ip address'));
         o.datatype = 'ip4addr'; o.rmempty = false;
         o.default = '192.168.1.100';
 
@@ -93,7 +93,7 @@ return L.view.extend({
                     '<span style="color: red; font-weight: bold;">' + _('stopped') + '</span>';
             }
 
-            ['nft-status', 'proxy-ip'].forEach(function(id) {
+            ['nft-status', 'proxy_server_ip_addr'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (el) {
                     var rowEl = el.closest('.cbi-value') || el.parentNode.parentNode;
@@ -102,8 +102,8 @@ return L.view.extend({
             });
 
             if (isRunning) {
-                var pipEl = document.getElementById('proxy-ip');
-                if (pipEl) pipEl.innerText = status.proxy_ip || '-';
+                var pipEl = document.getElementById('proxy_server_ip_addr');
+                if (pipEl) pipEl.innerText = status.proxy_server_ip_addr || '-';
                 
                 var nftEl = document.getElementById('nft-status');
                 if (nftEl && status.nft) {
@@ -114,20 +114,20 @@ return L.view.extend({
                 }
             }
 
-            // 核心修复：预填 Proxy IP 为 LAN IP + 1
+            // 核心修复：预填 Proxy Server IP 为 LAN IP + 1
             if (status.lan_ip) {
                 var parts = status.lan_ip.split('.');
                 if (parts.length === 4) {
                     parts[3] = parseInt(parts[3]) + 1;
                     var suggestedIp = parts.join('.');
                     
-                    var ipOpt = map.lookupOption('proxy_ip', 'global')[0];
+                    var ipOpt = map.lookupOption('proxy_server_ip_addr', 'global')[0];
                     if (ipOpt) {
                         ipOpt.placeholder = suggestedIp;
                         // 如果当前 UCI 值为空，则直接设置 default
-                        var currentVal = uci.get('flowproxy', 'global', 'proxy_ip');
+                        var currentVal = uci.get('flowproxy', 'global', 'proxy_server_ip_addr');
                         if (!currentVal) {
-                            var input = document.querySelector('input[name="cbid.flowproxy.global.proxy_ip"]');
+                            var input = document.querySelector('input[name="cbid.flowproxy.global.proxy_server_ip_addr"]');
                             if (input && !input.value) {
                                 input.value = suggestedIp;
                                 // 触发 change 事件以确保 uci 状态同步

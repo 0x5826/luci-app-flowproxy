@@ -55,8 +55,8 @@ check_env() {
 }
 
 check_config() {
-    local proxy_ip=$(uci -q get "$UCI_CONFIG.global.proxy_ip")
-    [ -z "$proxy_ip" ] && { log_msg error "proxy_ip not configured"; return 1; }
+    local proxy_server_ip_addr=$(uci -q get "$UCI_CONFIG.global.proxy_server_ip_addr")
+    [ -z "$proxy_server_ip_addr" ] && { log_msg error "proxy_server_ip_addr not configured"; return 1; }
     return 0
 }
 
@@ -99,7 +99,7 @@ apply_nft_rules() {
 }
 
 add_route() {
-    local proxy_ip=$(uci -q get "$UCI_CONFIG.global.proxy_ip")
+    local proxy_server_ip_addr=$(uci -q get "$UCI_CONFIG.global.proxy_server_ip_addr")
     local interface=$(uci -q get "$UCI_CONFIG.global.interface" || echo "br-lan")
     local tproxy_mark=$(uci -q get "$UCI_CONFIG.global.tproxy_mark" || echo "100")
     
@@ -108,9 +108,9 @@ add_route() {
     ip route flush table "$tproxy_mark" 2>/dev/null
     
     # 增加路由和策略
-    ip route add default via "$proxy_ip" dev "$interface" table "$tproxy_mark"
+    ip route add default via "$proxy_server_ip_addr" dev "$interface" table "$tproxy_mark"
     ip rule add fwmark "$tproxy_mark" lookup "$tproxy_mark" priority 100
-    log_msg info "Route added: via $proxy_ip dev $interface table $tproxy_mark"
+    log_msg info "Route added: via $proxy_server_ip_addr dev $interface table $tproxy_mark"
 }
 
 delete_route() {

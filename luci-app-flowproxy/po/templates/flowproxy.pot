@@ -25,10 +25,10 @@ msgstr ""
 msgid "nftables Status"
 msgstr ""
 
-msgid "Proxy IP"
+msgid "Proxy Server IP"
 msgstr ""
 
-msgid "Proxy IP Address"
+msgid "Proxy Server IP Address"
 msgstr ""
 
 msgid "The IP address of the proxy server (e.g., 192.168.1.100)"
