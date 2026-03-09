@@ -101,22 +101,48 @@ apply_nft_rules() {
 add_route() {
     local proxy_server_ip_addr=$(uci -q get "$UCI_CONFIG.global.proxy_server_ip_addr")
     local interface=$(uci -q get "$UCI_CONFIG.global.interface" || echo "br-lan")
-    local tproxy_mark=$(uci -q get "$UCI_CONFIG.global.tproxy_mark" || echo "100")
+    local traffic_mark=$(uci -q get "$UCI_CONFIG.global.traffic_mark" || echo "100")
+    local routing_table=$(uci -q get "$UCI_CONFIG.global.routing_table" || echo "100")
+
+    # 1. 先尝试用旧记录清理一次，防止由于配置变更导致的残留
+    delete_route "quiet"
+
+    log_msg info "Setting up routing table $routing_table and rule for mark $traffic_mark..."
     
-    # 清理可能存在的旧规则，防止重复冲突
-    ip rule del fwmark "$tproxy_mark" lookup "$tproxy_mark" 2>/dev/null
-    ip route flush table "$tproxy_mark" 2>/dev/null
-    
-    # 增加路由和策略
-    ip route add default via "$proxy_server_ip_addr" dev "$interface" table "$tproxy_mark"
-    ip rule add fwmark "$tproxy_mark" lookup "$tproxy_mark" priority 100
-    log_msg info "Route added: via $proxy_server_ip_addr dev $interface table $tproxy_mark"
+    # 2. 记录当前使用的标记值和路由表 ID
+    echo "$traffic_mark:$routing_table" > "/var/run/flowproxy.mark"
+
+    # 3. 再次确保新标记和表的规则是干净的
+    while ip rule del fwmark "$traffic_mark" lookup "$routing_table" 2>/dev/null; do :; done
+    ip route flush table "$routing_table" 2>/dev/null
+
+    # 4. 添加路由和策略
+    ip route add default via "$proxy_server_ip_addr" dev "$interface" table "$routing_table"
+    ip rule add fwmark "$traffic_mark" lookup "$routing_table" priority 100
+    log_msg info "Route added: via $proxy_server_ip_addr dev $interface table $routing_table for mark $traffic_mark"
 }
 
 delete_route() {
-    local tproxy_mark=$(uci -q get "$UCI_CONFIG.global.tproxy_mark" || echo "100")
-    ip rule del fwmark "$tproxy_mark" lookup "$tproxy_mark" 2>/dev/null
-    ip route flush table "$tproxy_mark" 2>/dev/null
+    local traffic_mark routing_table
+    local quiet="$1"
+    
+    # 优先从记录文件中读取上次运行时的标记值和路由表 ID
+    if [ -f "/var/run/flowproxy.mark" ]; then
+        local saved_val=$(cat "/var/run/flowproxy.mark")
+        traffic_mark=$(echo "$saved_val" | cut -d':' -f1)
+        routing_table=$(echo "$saved_val" | cut -d':' -f2)
+        [ "$quiet" != "quiet" ] && rm -f "/var/run/flowproxy.mark"
+    else
+        traffic_mark=$(uci -q get "$UCI_CONFIG.global.traffic_mark" || echo "100")
+        routing_table=$(uci -q get "$UCI_CONFIG.global.routing_table" || echo "100")
+    fi
+
+    [ "$quiet" != "quiet" ] && log_msg info "Cleaning up routing table $routing_table and rules for mark $traffic_mark..."
+    
+    # 循环删除所有匹配的规则，防止多条残留
+    while ip rule del fwmark "$traffic_mark" lookup "$routing_table" 2>/dev/null; do :; done
+    # 额外清理：如果用户修改了 mark 但没改 table，或者反之，这里做一次针对 table 的 flush
+    ip route flush table "$routing_table" 2>/dev/null
 }
 
 delete_nft() {

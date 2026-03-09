@@ -68,13 +68,56 @@ msgstr "TCP 和 UDP 协议的开启或关闭，请到“规则”页面进行设
 msgid "proxy server ip address"
 msgstr "代理服务器 IP 地址"
 
+msgid "The server that has the proxy enabled and can forward IP traffic."
+msgstr "已启用代理并能转发 IP 流量的服务器。"
+
+msgid "proxy server dns port"
+msgstr "代理服务器 DNS 端口"
+
+msgid "The port of the DNS proxy service that provides DNS resolution for the local network."
+msgstr "已启用 DNS 代理服务为内网提供 DNS 解析的端口。"
+
 msgid "network interface"
 msgstr "网络接口"
 
-msgid "tproxy mark"
-msgstr "TPROXY 标记值"
+msgid "The network interface where the proxy server is located (usually LAN)."
+msgstr "代理服务器所在的网络接口（通常为 LAN）。"
 
-msgid "force upstream dns to proxy server"
+msgid "Traffic Mark"
+msgstr "流量标记"
+
+msgid "Mark value (fwmark) used to identify packets for diversion. 32-bit unsigned integer."
+msgstr "用于标识分流数据包的标记值 (fwmark)。32 位无符号整数。"
+
+msgid "Routing Table ID"
+msgstr "路由表 ID"
+
+msgid "Routing table ID used for diverted traffic. Default is 100. Do not modify unless you have specific requirements."
+msgstr "这是路由表 ID（默认 100），如无特殊需求请勿修改。"
+
+msgid "IDs 0, 253, 254, 255 are reserved by the system."
+msgstr "ID 0, 253, 254, 255 已被系统预留。"
+
+msgid "flowproxy - preview & debug"
+msgstr "代理分流 - 预览与调试"
+
+msgid "view the generated configuration and live kernel state."
+msgstr "查看生成的配置和实时内核状态。"
+
+msgid "inspection tabs"
+msgstr "检查选项卡"
+
+msgid "generated config"
+msgstr "生成的配置"
+
+msgid "live runtime state"
+msgstr "实时运行状态"
+
+msgid "copy raw config"
+msgstr "复制原始内容"
+
+msgid "copied"
+msgstr "已复制"
 msgstr "强制上游 DNS 为代理服务器"
 
 msgid "when enabled, dnsmasq will use the proxy server as the upstream dns server. \"dns redirect\" feature will be disabled.<br/>note: the \"enable flowproxy\" option must also be turned on for this to take effect."

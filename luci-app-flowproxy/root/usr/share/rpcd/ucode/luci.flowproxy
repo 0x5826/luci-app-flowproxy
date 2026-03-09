@@ -60,7 +60,7 @@ const methods = {
                 proxy_server_dns_port: uci_cursor.get(UCI_CONFIG, 'global', 'proxy_server_dns_port') || '5353',
                 lan_ip: safe_trim(lan_ip),
                 interface: uci_cursor.get(UCI_CONFIG, 'global', 'interface') || 'br-lan',
-                tproxy_mark: uci_cursor.get(UCI_CONFIG, 'global', 'tproxy_mark') || '100',
+                traffic_mark: uci_cursor.get(UCI_CONFIG, 'global', 'traffic_mark') || '100',
                 nft: { tcp: tcp_active ? 1 : 0, udp: udp_active ? 1 : 0 }
             };
         }

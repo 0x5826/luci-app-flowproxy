@@ -57,10 +57,12 @@ return L.view.extend({
         o = s.option(form.Value, 'proxy_server_ip_addr', _('proxy server ip address'));
         o.datatype = 'ip4addr'; o.rmempty = false;
         o.default = '192.168.1.100';
+        o.description = _('The server that has the proxy enabled and can forward IP traffic.');
 
         o = s.option(form.Value, 'proxy_server_dns_port', _('proxy server dns port'));
         o.datatype = 'port'; o.rmempty = false;
         o.default = '5353';
+        o.description = _('The port of the DNS proxy service that provides DNS resolution for the local network.');
 
         o = s.option(form.ListValue, 'interface', _('network interface'));
         if (ifdata && ifdata.interfaces) {
@@ -69,9 +71,24 @@ return L.view.extend({
             });
         }
         o.default = 'br-lan';
+        o.description = _('The network interface where the proxy server is located (usually LAN).');
 
-        o = s.option(form.Value, 'tproxy_mark', _('tproxy mark'));
-        o.datatype = 'uinteger'; o.default = '100';
+        o = s.option(form.Value, 'traffic_mark', _('Traffic Mark'));
+        o.datatype = 'and(uinteger,range(1, 4294967295))';
+        o.default = '100';
+        o.description = _('Mark value (fwmark) used to identify packets for diversion. 32-bit unsigned integer.');
+
+        o = s.option(form.Value, 'routing_table', _('Routing Table ID'));
+        o.datatype = 'and(uinteger,range(1, 4294967295))';
+        o.default = '100';
+        o.validate = function(section_id, value) {
+            var v = parseInt(value);
+            if (v === 0 || v === 253 || v === 254 || v === 255) {
+                return _('IDs 0, 253, 254, 255 are reserved by the system.');
+            }
+            return true;
+        };
+        o.description = _('Routing table ID used for diverted traffic. Default is 100. Do not modify unless you have specific requirements.');
 
         return m.render().then(L.bind(function(node) {
             this.refreshStatus(m);

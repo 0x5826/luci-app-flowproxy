@@ -161,7 +161,8 @@ SECTIONS_UDP=$(uci -q show "$CONFIG" | grep "=udp_rule" | cut -d'.' -f2 | cut -d
 
 # --- 运行时状态输出 (用于预览页面) ---
 if [ "$1" = "runtime" ]; then
-	TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
+	TRAFFIC_MARK=$(uci -q get "$CONFIG.global.traffic_mark" || echo "100")
+	ROUTING_TABLE=$(uci -q get "$CONFIG.global.routing_table" || echo "100")
 	echo "--- [ nftables live rules ] ---"
 	# 使用 awk 截断过长的 set 元素显示
 	nft list table inet "$CONFIG" 2>/dev/null | awk 'BEGIN { count=0; skip=0 } 
@@ -173,8 +174,8 @@ if [ "$1" = "runtime" ]; then
 	echo "--- [ ip rule list ] ---"
 	ip rule show 2>/dev/null
 	echo ""
-	echo "--- [ ip route table $TPROXY_MARK ] ---"
-	ip route show table "$TPROXY_MARK" 2>/dev/null || echo "(table empty)"
+	echo "--- [ ip route table $ROUTING_TABLE ] ---"
+	ip route show table "$ROUTING_TABLE" 2>/dev/null || echo "(table empty)"
 	exit 0
 fi
 
@@ -190,7 +191,7 @@ done
 
 TCP_ENABLED=$(uci -q get "$CONFIG.global.tcp_enabled" || echo "1")
 UDP_ENABLED=$(uci -q get "$CONFIG.global.udp_enabled" || echo "1")
-TPROXY_MARK=$(uci -q get "$CONFIG.global.tproxy_mark" || echo "100")
+TRAFFIC_MARK=$(uci -q get "$CONFIG.global.traffic_mark" || echo "100")
 PROXY_SERVER_IP_ADDR=$(uci -q get "$CONFIG.global.proxy_server_ip_addr")
 
 # TCP 链
@@ -203,7 +204,7 @@ EOF
     # 内置防回环：符合逻辑规范
     [ -n "$PROXY_SERVER_IP_ADDR" ] && echo "        ip saddr $PROXY_SERVER_IP_ADDR counter return" >> "$OUTPUT_FILE"
     for s in $SECTIONS_TCP; do process_rule "$s" "tcp" >> "$OUTPUT_FILE"; done
-    echo "        ip protocol tcp counter meta mark set $TPROXY_MARK" >> "$OUTPUT_FILE"
+    echo "        ip protocol tcp counter meta mark set $TRAFFIC_MARK" >> "$OUTPUT_FILE"
     echo "    }" >> "$OUTPUT_FILE"
 fi
 
@@ -217,7 +218,7 @@ EOF
     # 内置防回环：符合逻辑规范
     [ -n "$PROXY_SERVER_IP_ADDR" ] && echo "        ip saddr $PROXY_SERVER_IP_ADDR counter return" >> "$OUTPUT_FILE"
     for s in $SECTIONS_UDP; do process_rule "$s" "udp" >> "$OUTPUT_FILE"; done
-    echo "        ip protocol udp counter meta mark set $TPROXY_MARK" >> "$OUTPUT_FILE"
+    echo "        ip protocol udp counter meta mark set $TRAFFIC_MARK" >> "$OUTPUT_FILE"
     echo "    }" >> "$OUTPUT_FILE"
 fi
 
