@@ -116,8 +116,7 @@ msgstr "实时运行状态"
 msgid "copy raw config"
 msgstr "复制原始内容"
 
-msgid "copied"
-msgstr "已复制"
+msgid "force upstream dns to proxy server"
 msgstr "强制上游 DNS 为代理服务器"
 
 msgid "when enabled, dnsmasq will use the proxy server as the upstream dns server. \"dns redirect\" feature will be disabled.<br/>note: the \"enable flowproxy\" option must also be turned on for this to take effect."
