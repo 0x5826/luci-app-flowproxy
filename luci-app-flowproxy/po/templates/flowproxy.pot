@@ -43,13 +43,28 @@ msgstr ""
 msgid "Network interface for routing traffic"
 msgstr ""
 
-msgid "Mark Value"
+msgid "Traffic Mark"
 msgstr ""
 
-msgid "TPROXY Mark"
+msgid "Mark value (fwmark) used to identify packets for diversion. 32-bit unsigned integer."
 msgstr ""
 
-msgid "Firewall mark value for transparent proxy (default: 100)"
+msgid "Routing Table ID"
+msgstr ""
+
+msgid "Routing table ID used for diverted traffic. Default is 100. Do not modify unless you have specific requirements."
+msgstr ""
+
+msgid "IDs 0, 253, 254, 255 are reserved by the system."
+msgstr ""
+
+msgid "The network interface where the proxy server is located (usually LAN)."
+msgstr ""
+
+msgid "The server that has the proxy enabled and can forward IP traffic."
+msgstr ""
+
+msgid "The port of the DNS proxy service that provides DNS resolution for the local network."
 msgstr ""
 
 msgid "Enable"
