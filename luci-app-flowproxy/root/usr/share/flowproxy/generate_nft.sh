@@ -7,7 +7,9 @@
 
 CONFIG="flowproxy"
 NFT_TABLE="inet flowproxy"
-OUTPUT_FILE="/tmp/flowproxy_nft.conf"
+OUTPUT_FILE="/tmp/flowproxy/nft.conf"
+
+mkdir -p "$(dirname "$OUTPUT_FILE")"
 
 ENABLED_SETS=" "
 

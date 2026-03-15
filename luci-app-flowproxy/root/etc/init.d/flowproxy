@@ -8,7 +8,7 @@ USE_PROCD=1
 NAME="flowproxy"
 UCI_CONFIG="flowproxy"
 LOG_FILE="/var/log/flowproxy.log"
-NFT_CONF="/tmp/flowproxy_nft.conf"
+NFT_CONF="/tmp/flowproxy/nft.conf"
 GENERATE_SCRIPT="/usr/share/flowproxy/generate_nft.sh"
 STATE_FILE="/var/run/flowproxy.running"
 
@@ -64,9 +64,10 @@ apply_nft_rules() {
     log_msg info "Generating nftables configuration..."
     local conf_level=$(uci -q get "$UCI_CONFIG.global.log_level" || echo "info")
 
+    mkdir -p "$(dirname "$NFT_CONF")"
     if [ -x "$GENERATE_SCRIPT" ]; then
         # 传递日志等级并捕获 stderr 到临时文件
-        local err_file="/tmp/flowproxy_gen_err.tmp"
+        local err_file="/tmp/flowproxy/gen_err.tmp"
         FLOWPROXY_LOG_LEVEL="$conf_level" "$GENERATE_SCRIPT" > "$NFT_CONF" 2> "$err_file"
         local ret=$?
         

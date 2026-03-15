@@ -6,7 +6,7 @@ import { connect } from 'ubus';
 
 const UCI_CONFIG = 'flowproxy';
 const STATE_FILE = '/var/run/flowproxy.running';
-const IP_CACHE = '/tmp/flowproxy_lan_ip.cache';
+const IP_CACHE = '/tmp/flowproxy/lan_ip.cache';
 const LOG_FILE = '/var/log/flowproxy.log';
 const NFT_TABLE = 'flowproxy';
 
@@ -41,6 +41,7 @@ const methods = {
                         let lan_status = ubus_conn.call('network.interface.lan', 'status');
                         if (lan_status?.['ipv4-address']?.[0]) {
                             lan_ip = lan_status['ipv4-address'][0].address;
+                            system('mkdir -p /tmp/flowproxy');
                             writefile(IP_CACHE, lan_ip);
                         }
                         ubus_conn.disconnect();
@@ -92,16 +93,18 @@ const methods = {
 
     generate_nft_config: {
         call: function() {
-            system('FLOWPROXY_PREVIEW=1 UCI_CONFIG_DIR=/tmp/.uci /usr/share/flowproxy/generate_nft.sh > /tmp/flowproxy_nft.conf 2>&1');
-            return { config: safe_trim(readfile('/tmp/flowproxy_nft.conf') || '') };
+            system('mkdir -p /tmp/flowproxy');
+            system('FLOWPROXY_PREVIEW=1 UCI_CONFIG_DIR=/tmp/.uci /usr/share/flowproxy/generate_nft.sh > /tmp/flowproxy/nft.conf 2>&1');
+            return { config: safe_trim(readfile('/tmp/flowproxy/nft.conf') || '') };
         }
     },
 
     get_runtime_config: {
         call: function() {
-            let res_file = '/tmp/flowproxy_runtime.tmp';
-            let dns_file = '/tmp/flowproxy_dns_runtime.tmp';
+            let res_file = '/tmp/flowproxy/runtime.tmp';
+            let dns_file = '/tmp/flowproxy/dns_runtime.tmp';
             
+            system('mkdir -p /tmp/flowproxy');
             system('/usr/share/flowproxy/generate_nft.sh runtime > ' + res_file + ' 2>&1');
             let nft_runtime = readfile(res_file) || "(failed)";
             system('rm -f ' + res_file);
