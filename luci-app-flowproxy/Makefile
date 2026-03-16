@@ -21,6 +21,7 @@ define Package/$(PKG_NAME)/postrm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
 	rm -rf /tmp/flowproxy
+	rm -rf /usr/share/flowproxy
 	rm -f /var/log/flowproxy.log*
 	rm -f /var/run/flowproxy.*
 fi
