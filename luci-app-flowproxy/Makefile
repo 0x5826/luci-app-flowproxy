@@ -8,6 +8,25 @@ LUCI_TITLE:=LuCI Support for FlowProxy Traffic Diversion
 LUCI_DEPENDS:=+luci-base
 LUCI_PKGARCH:=all
 
+define Package/$(PKG_NAME)/prerm
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	/etc/init.d/flowproxy stop
+	/etc/init.d/flowproxy disable
+fi
+exit 0
+endef
+
+define Package/$(PKG_NAME)/postrm
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	rm -rf /tmp/flowproxy
+	rm -f /var/log/flowproxy.log*
+	rm -f /var/run/flowproxy.*
+fi
+exit 0
+endef
+
 include $(TOPDIR)/feeds/luci/luci.mk
 
 # call BuildPackage - OpenWrt buildroot signature
