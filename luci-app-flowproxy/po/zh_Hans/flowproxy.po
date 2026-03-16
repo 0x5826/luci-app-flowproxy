@@ -179,7 +179,7 @@ msgid "checking..."
 msgstr "检测中..."
 
 msgid "chnroute_dst_ip_v4"
-msgstr "中国大陆 IP (chnroute_dst_ip_v4)"
+msgstr "中国大陆 IP"
 
 msgid "elements"
 msgstr "元素列表"
@@ -197,22 +197,22 @@ msgid "no logs available"
 msgstr "暂无日志内容"
 
 msgid "no_proxy_dst_ip_v4"
-msgstr "不代理的目标 IP (no_proxy_dst_ip_v4)"
+msgstr "不代理的目标 IP"
 
 msgid "no_proxy_dst_tcp_ports"
-msgstr "不代理的目标 TCP 端口 (no_proxy_dst_tcp_ports)"
+msgstr "不代理的目标 TCP 端口"
 
 msgid "no_proxy_dst_udp_ports"
-msgstr "不代理的目标 UDP 端口 (no_proxy_dst_udp_ports)"
+msgstr "不代理的目标 UDP 端口"
 
 msgid "no_proxy_src_ip_v4"
-msgstr "不代理的源 IP (no_proxy_src_ip_v4)"
+msgstr "不代理的源 IP"
 
 msgid "no_proxy_src_mac"
-msgstr "不代理的源 MAC (no_proxy_src_mac)"
+msgstr "不代理的源 MAC"
 
 msgid "private_dst_ip_v4"
-msgstr "私有 IP (private_dst_ip_v4)"
+msgstr "私有 IP"
 
 msgid "reset %s templates"
 msgstr "重置 %s 模版"
