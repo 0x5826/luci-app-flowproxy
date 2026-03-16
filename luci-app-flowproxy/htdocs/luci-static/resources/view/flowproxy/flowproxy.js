@@ -39,32 +39,13 @@ return L.view.extend({
     load: function() {
         return Promise.all([
             uci.load('flowproxy').catch(function() { return {}; }),
-            network.getDevices()
+            network.getDevices(),
+            callGetStatus().catch(function() { return {}; })
         ]);
     },
 
     highlightNft: function(text) {
-        if (!text || text.trim() === '') return '<span style="color: #999;">' + _('(no content / table not loaded)') + '</span>';
-        var rules = [
-            { rex: /#(.*)/g, cls: 'comment' },
-            { rex: /\b(table|chain|set|elements|type)\b/g, cls: 'keyword' },
-            { rex: /\b(ip|ip6|tcp|udp|ether|meta|meta nfproto)\b/g, cls: 'proto' },
-            { rex: /\b(saddr|daddr|sport|dport|mark)\b/g, cls: 'match' },
-            { rex: /\b(return|accept|drop|reject|counter|set)\b/g, cls: 'action' },
-            { rex: /@[\w_]+/g, cls: 'variable' },
-            { rex: /\{|\}/g, cls: 'bracket' }
-        ];
-        var html = text.replace(/[&<>"']/g, function(m) {
-            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
-        });
-        rules.forEach(function(r) {
-            html = html.replace(r.rex, function(match) {
-                return '<span class="nft-' + r.cls + '">' + match + '</span>';
-            });
-        });
-        return html;
-    },
-
+-- (rest of the method unchanged) --
     refreshStatus: function(map, node) {
         return callGetStatus().then(L.bind(function(status) {
             if (!status) return;
@@ -105,18 +86,19 @@ return L.view.extend({
                 L.dom.content(dnsEl, dcontent);
             }
 
+            // IP 自动生成逻辑
             if (status.lan_ip) {
                 var parts = status.lan_ip.split('.');
                 if (parts.length === 4) {
                     parts[3] = parseInt(parts[3]) + 1;
                     var suggestedIp = parts.join('.');
-                    if (map) {
-                        var ipOpt = map.lookupOption('proxy_server_ip_addr', 'global')[0];
-                        if (ipOpt) ipOpt.placeholder = suggestedIp;
-                    }
+                    
+                    var ipOpt = map.lookupOption('proxy_server_ip_addr', 'global')[0];
+                    if (ipOpt) ipOpt.placeholder = suggestedIp;
+
                     var input = container.querySelector('input[name="cbid.flowproxy.global.proxy_server_ip_addr"]');
-                    if (input && (!input.value || input.value === '')) {
-                        var uciVal = uci.get('flowproxy', 'global', 'proxy_server_ip_addr');
+                    if (input && !input.value) {
+                        var uciVal = map.data.get('flowproxy', 'global', 'proxy_server_ip_addr');
                         if (!uciVal) {
                             input.value = suggestedIp;
                             input.dispatchEvent(new CustomEvent('change', { bubbles: true }));
@@ -128,19 +110,11 @@ return L.view.extend({
     },
 
     refreshLogs: function() {
-        return callGetLogs(500).then(L.bind(function(data) {
-            var logEl = document.getElementById('log-content');
-            if (logEl) {
-                var logs = (data && Array.isArray(data.logs)) ? data.logs : [];
-                logEl.value = logs.length > 0 ? logs.join('\n') : _('no logs available');
-                if (logs.length > 0) logEl.scrollTop = logEl.scrollHeight;
-            }
-        }, this));
-    },
-
+-- (rest of the method unchanged) --
     render: function(data) {
         var self = this;
         var devices = data[1];
+        var status = data[2];
         var m, s, o;
 
         m = new form.Map('flowproxy', _('FlowProxy'),
@@ -151,7 +125,7 @@ return L.view.extend({
                 #log-content { width: 100% !important; height: 60vh; min-height: 400px; font-family: monospace; font-size: 12px; background: #f5f5f5 !important; color: #333 !important; border: 1px solid #ccc !important; padding: 10px; resize: vertical; border-radius: 4px; box-sizing: border-box; }
                 .nft-code-view { background: #f5f5f5 !important; color: #333333 !important; padding: 15px !important; font-family: monospace !important; font-size: 12px !important; overflow-x: auto !important; white-space: pre-wrap !important; width: 100% !important; border: 1px solid #cccccc !important; border-radius: 4px; box-sizing: border-box; max-height: 70vh; }
                 .nft-comment { color: #777777; font-style: italic; } .nft-keyword { color: #a626a1; font-weight: bold; } .nft-proto { color: #4078f2; } .nft-match { color: #986801; } .nft-action { color: #e45649; font-weight: bold; } .nft-variable { color: #50a14f; font-weight: bold; }
-                .cbi-section-table-titles th[data-sortable-row]::after { display: none !important; content: "" !important; }
+                .cbi-section-table-titles th[data-sortable-row]::after, .cbi-section-table-titles th[data-sortable-row]::before { display: none !important; }
                 .cbi-section-table-titles th[data-sortable-row] { pointer-events: none !important; cursor: default !important; }
             `));
         }
@@ -174,9 +148,12 @@ return L.view.extend({
 
         s.taboption('settings', form.Flag, 'enabled', _('Enable FlowProxy')).rmempty = false;
         s.taboption('settings', form.Flag, 'dns_proxy_enabled', _('Force upstream DNS to proxy server')).rmempty = false;
-        s.taboption('settings', form.Value, 'proxy_server_ip_addr', _('Proxy server IP address')).datatype = 'ip4addr';
+        
+        o = s.taboption('settings', form.Value, 'proxy_server_ip_addr', _('Proxy server IP address'));
+        o.datatype = 'ip4addr'; o.rmempty = false;
+
         o = s.taboption('settings', form.Value, 'proxy_server_dns_port', _('Proxy server DNS port'));
-        o.datatype = 'port'; o.default = '5353';
+        o.datatype = 'port'; o.default = '5353'; o.rmempty = false;
 
         o = s.taboption('settings', form.ListValue, 'interface', _('Network interface'));
         devices.forEach(function(d) { o.value(d.getName(), d.getName()); });
