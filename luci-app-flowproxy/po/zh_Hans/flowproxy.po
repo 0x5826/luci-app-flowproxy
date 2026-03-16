@@ -11,7 +11,7 @@ msgid "(n/a)"
 msgstr "(未知)"
 
 msgid "(no content / table not loaded)"
-msgstr ""
+msgstr "(无内容 / 列表未加载)"
 
 msgid "Action"
 msgstr "动作"
@@ -161,7 +161,7 @@ msgid "Traffic Mark"
 msgstr "流量标记"
 
 msgid "Traffic diversion based on nftables rules. The service will automatically start/stop when you click \"Save & Apply\"."
-msgstr ""
+msgstr "基于 nftables 规则的流量分流。当你点击 “保存并应用” 后，服务将自动启动或停止。"
 
 msgid "UDP Matching Rules"
 msgstr "UDP 匹配规则列表"
