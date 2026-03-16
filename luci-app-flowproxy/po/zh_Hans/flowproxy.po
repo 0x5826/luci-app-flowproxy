@@ -80,7 +80,7 @@ msgid "Force upstream DNS to proxy server"
 msgstr "强制上游 DNS 为代理服务器"
 
 msgid "Generated Config"
-msgstr "生成的配置 (Preview)"
+msgstr "生成的配置"
 
 msgid "Invalid IPv4 address or CIDR"
 msgstr "无效的 IPv4 地址或 CIDR"
@@ -95,7 +95,7 @@ msgid "Lists"
 msgstr "名单"
 
 msgid "Live Runtime State"
-msgstr "实时运行状态 (Live)"
+msgstr "实时运行状态"
 
 msgid "Log Level"
 msgstr "日志级别"
