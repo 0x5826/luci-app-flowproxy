@@ -104,27 +104,6 @@ return L.view.extend({
                 }
                 L.dom.content(dnsEl, dcontent);
             }
-
-            // IP 自动生成逻辑
-            if (status.lan_ip) {
-                var parts = status.lan_ip.split('.');
-                if (parts.length === 4) {
-                    parts[3] = parseInt(parts[3]) + 1;
-                    var suggestedIp = parts.join('.');
-                    
-                    var ipOpt = map.lookupOption('proxy_server_ip_addr', 'global')[0];
-                    if (ipOpt) ipOpt.placeholder = suggestedIp;
-
-                    var input = container.querySelector('input[name="cbid.flowproxy.global.proxy_server_ip_addr"]');
-                    if (input && !input.value) {
-                        var uciVal = map.data.get('flowproxy', 'global', 'proxy_server_ip_addr');
-                        if (!uciVal) {
-                            input.value = suggestedIp;
-                            input.dispatchEvent(new CustomEvent('change', { bubbles: true }));
-                        }
-                    }
-                }
-            }
         }, this));
     },
 
@@ -177,7 +156,7 @@ return L.view.extend({
         s.taboption('settings', form.Flag, 'dns_proxy_enabled', _('Force upstream DNS to proxy server')).rmempty = false;
         
         o = s.taboption('settings', form.Value, 'proxy_server_ip_addr', _('Proxy server IP address'));
-        o.datatype = 'ip4addr'; o.rmempty = false;
+        o.datatype = 'ip4addr'; o.default = '192.168.1.254'; o.rmempty = false;
 
         o = s.taboption('settings', form.Value, 'proxy_server_dns_port', _('Proxy server DNS port'));
         o.datatype = 'port'; o.default = '5353'; o.rmempty = false;
