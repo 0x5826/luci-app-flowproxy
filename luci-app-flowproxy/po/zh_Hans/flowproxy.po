@@ -149,7 +149,7 @@ msgid "Rules"
 msgstr "规则"
 
 msgid "Set type mismatch: expected %s, got %s"
-msgstr ""
+msgstr "集合类型不匹配: 期望 %s, 实际为 %s"
 
 msgid "Settings"
 msgstr "设置"
@@ -197,19 +197,19 @@ msgid "no logs available"
 msgstr "暂无日志内容"
 
 msgid "no_proxy_dst_ip_v4"
-msgstr "目标 IP (no_proxy_dst_ip_v4)"
+msgstr "不代理的目标 IP (no_proxy_dst_ip_v4)"
 
 msgid "no_proxy_dst_tcp_ports"
-msgstr "目标 TCP 端口 (no_proxy_dst_tcp_ports)"
+msgstr "不代理的目标 TCP 端口 (no_proxy_dst_tcp_ports)"
 
 msgid "no_proxy_dst_udp_ports"
-msgstr "目标 UDP 端口 (no_proxy_dst_udp_ports)"
+msgstr "不代理的目标 UDP 端口 (no_proxy_dst_udp_ports)"
 
 msgid "no_proxy_src_ip_v4"
-msgstr "源 IP (no_proxy_src_ip_v4)"
+msgstr "不代理的源 IP (no_proxy_src_ip_v4)"
 
 msgid "no_proxy_src_mac"
-msgstr "源 MAC (no_proxy_src_mac)"
+msgstr "不代理的源 MAC (no_proxy_src_mac)"
 
 msgid "private_dst_ip_v4"
 msgstr "私有 IP (private_dst_ip_v4)"
