@@ -146,8 +146,8 @@ process_rule() {
         src_mac)  segment="ether saddr $match_value ip protocol $proto" ;;
         src_ip)   segment="ip saddr $match_value ip protocol $proto" ;;
         dst_ip)   segment="ip daddr $match_value ip protocol $proto" ;;
-        src_port) segment="ip protocol $proto $proto sport $match_value" ;;
-        dst_port) segment="ip protocol $proto $proto dport $match_value" ;;
+        src_port) segment="$proto sport $match_value" ;;
+        dst_port) segment="$proto dport $match_value" ;;
         *)        segment="$match_value" ;;
     esac
 
@@ -184,6 +184,10 @@ fi
 # --- 开始生成 ---
 cat > "$OUTPUT_FILE" << EOF
 #!/usr/sbin/nft -f
+# 声明并刷新表格，确保规则下发的原子性
+table $NFT_TABLE
+flush table $NFT_TABLE
+
 table $NFT_TABLE {
 EOF
 
@@ -203,7 +207,7 @@ if [ "$TCP_ENABLED" = "1" ]; then
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
 EOF
-    # 内置防回环：符合逻辑规范
+    # 内置防回环
     [ -n "$PROXY_SERVER_IP_ADDR" ] && echo "        ip saddr $PROXY_SERVER_IP_ADDR counter return" >> "$OUTPUT_FILE"
     for s in $SECTIONS_TCP; do process_rule "$s" "tcp" >> "$OUTPUT_FILE"; done
     echo "        ip protocol tcp counter meta mark set $TRAFFIC_MARK" >> "$OUTPUT_FILE"
@@ -217,7 +221,7 @@ if [ "$UDP_ENABLED" = "1" ]; then
         type filter hook prerouting priority mangle; policy accept;
         meta nfproto != ipv4 return
 EOF
-    # 内置防回环：符合逻辑规范
+    # 内置防回环
     [ -n "$PROXY_SERVER_IP_ADDR" ] && echo "        ip saddr $PROXY_SERVER_IP_ADDR counter return" >> "$OUTPUT_FILE"
     for s in $SECTIONS_UDP; do process_rule "$s" "udp" >> "$OUTPUT_FILE"; done
     echo "        ip protocol udp counter meta mark set $TRAFFIC_MARK" >> "$OUTPUT_FILE"
