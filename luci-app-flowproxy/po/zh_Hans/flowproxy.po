@@ -148,6 +148,9 @@ msgstr "路由表 ID"
 msgid "Rules"
 msgstr "规则"
 
+msgid "Set type mismatch: expected %s, got %s"
+msgstr ""
+
 msgid "Settings"
 msgstr "设置"
 
@@ -158,7 +161,7 @@ msgid "Traffic Mark"
 msgstr "流量标记"
 
 msgid "Traffic diversion based on nftables rules. The service will automatically start/stop when you click \"Save & Apply\"."
-msgstr "基于 nftables 规则的流量分流。点击“保存并应用”后，服务将自动启动/停止。"
+msgstr ""
 
 msgid "UDP Matching Rules"
 msgstr "UDP 匹配规则列表"
@@ -222,3 +225,4 @@ msgstr "已停止"
 
 msgid "this will delete ALL current %s rules and generate default templates. are you sure?"
 msgstr "这将删除当前所有 %s 规则并加载推荐的默认模版。确定吗？"
+

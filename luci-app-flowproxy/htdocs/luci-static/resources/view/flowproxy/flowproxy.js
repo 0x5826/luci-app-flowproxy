@@ -151,6 +151,8 @@ return L.view.extend({
                 #log-content { width: 100% !important; height: 60vh; min-height: 400px; font-family: monospace; font-size: 12px; background: #f5f5f5 !important; color: #333 !important; border: 1px solid #ccc !important; padding: 10px; resize: vertical; border-radius: 4px; box-sizing: border-box; }
                 .nft-code-view { background: #f5f5f5 !important; color: #333333 !important; padding: 15px !important; font-family: monospace !important; font-size: 12px !important; overflow-x: auto !important; white-space: pre-wrap !important; width: 100% !important; border: 1px solid #cccccc !important; border-radius: 4px; box-sizing: border-box; max-height: 70vh; }
                 .nft-comment { color: #777777; font-style: italic; } .nft-keyword { color: #a626a1; font-weight: bold; } .nft-proto { color: #4078f2; } .nft-match { color: #986801; } .nft-action { color: #e45649; font-weight: bold; } .nft-variable { color: #50a14f; font-weight: bold; }
+                .cbi-section-table-titles th[data-sortable-row]::after { display: none !important; content: "" !important; }
+                .cbi-section-table-titles th[data-sortable-row] { pointer-events: none !important; cursor: default !important; }
             `));
         }
 
@@ -304,7 +306,6 @@ return L.view.extend({
             nftsets.forEach(function(set) { match_value.value(set); });
             match_value.validate = function(sid, val) {
                 if (!val || val === '') return _('Expecting: %s').format(_('Match Value'));
-                if (val.match(/^@/)) return true;
                 
                 var type = match_type.formvalue(sid);
                 if (!type) {
@@ -312,6 +313,23 @@ return L.view.extend({
                     if (typeEl && typeEl.value) type = typeEl.value;
                 }
                 if (!type) type = uci.get('flowproxy', sid, 'match_type');
+
+                if (val.match(/^@/)) {
+                    var setName = val.substring(1);
+                    if (setName === 'proxy_server_ip_addr') return true;
+                    var setType = uci.get('flowproxy', setName, 'type');
+                    if (!setType) return true; // Allows custom sets not defined yet
+                    
+                    var expectedType = '';
+                    if (type === 'dst_ip' || type === 'src_ip') expectedType = 'ipv4_addr';
+                    else if (type === 'src_mac') expectedType = 'ether_addr';
+                    else if (type === 'dst_port' || type === 'src_port') expectedType = 'inet_service';
+                    
+                    if (expectedType && setType !== expectedType && type !== 'custom') {
+                        return _('Set type mismatch: expected %s, got %s').format(expectedType, setType);
+                    }
+                    return true;
+                }
 
                 switch (type) {
                     case 'dst_ip':
