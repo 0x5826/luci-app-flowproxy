@@ -45,7 +45,26 @@ return L.view.extend({
     },
 
     highlightNft: function(text) {
--- (rest of the method unchanged) --
+        if (!text || text.trim() === '') return '<span style="color: #999;">' + _('(no content / table not loaded)') + '</span>';
+        var rules = [
+            { rex: /#(.*)/g, cls: 'comment' },
+            { rex: /\b(table|chain|set|elements|type)\b/g, cls: 'keyword' },
+            { rex: /\b(ip|ip6|tcp|udp|ether|meta|meta nfproto)\b/g, cls: 'proto' },
+            { rex: /\b(saddr|daddr|sport|dport|mark)\b/g, cls: 'match' },
+            { rex: /\b(return|accept|drop|reject|counter|set)\b/g, cls: 'action' },
+            { rex: /@[\w_]+/g, cls: 'variable' },
+            { rex: /\{|\}/g, cls: 'bracket' }
+        ];
+        var html = text.replace(/[&<>"']/g, function(m) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+        });
+        rules.forEach(function(r) {
+            html = html.replace(r.rex, function(match) {
+                return '<span class="nft-' + r.cls + '">' + match + '</span>';
+            });
+        });
+        return html;
+    },
     refreshStatus: function(map, node) {
         return callGetStatus().then(L.bind(function(status) {
             if (!status) return;
@@ -110,7 +129,15 @@ return L.view.extend({
     },
 
     refreshLogs: function() {
--- (rest of the method unchanged) --
+        return callGetLogs(500).then(L.bind(function(data) {
+            var logEl = document.getElementById('log-content');
+            if (logEl) {
+                var logs = (data && Array.isArray(data.logs)) ? data.logs : [];
+                logEl.value = logs.length > 0 ? logs.join('\n') : _('no logs available');
+                if (logs.length > 0) logEl.scrollTop = logEl.scrollHeight;
+            }
+        }, this));
+    },
     render: function(data) {
         var self = this;
         var devices = data[1];

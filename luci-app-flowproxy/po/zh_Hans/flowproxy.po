@@ -10,6 +10,9 @@ msgstr "(%d 行)"
 msgid "(n/a)"
 msgstr "(未知)"
 
+msgid "(no content / table not loaded)"
+msgstr ""
+
 msgid "Action"
 msgstr "动作"
 
